@@ -8,6 +8,13 @@ status](https://github.com/rbchan/unmarked/workflows/R-CMD-check/badge.svg)](htt
 status](https://www.r-pkg.org/badges/version/unmarked)](https://cran.r-project.org/package=unmarked)
 <!-- badges: end -->
 
+-----
+
+**NOTE:** Active `unmarked` development is proceeding at [https://github.com/hmecology/unmarked](https://github.com/hmecology/unmarked).
+Please send all issues and pull requests to that repository.
+
+-----
+
 `unmarked` is an [R](https://www.r-project.org/) package for analyzing
 ecological data arising from several popular sampling techniques. The
 sampling methods include point counts, occurrence sampling, distance
