@@ -27,16 +27,17 @@ double nll_occuCOP(arma::icolvec y, arma::icolvec L,
     double iN=0.0; // init sum(y) = total count of detec at site i
     int NbRemoved=0; // init count of the removed observations at site i
     for(int j=0; j<J; j++) {
-      if(!removed(k)) {
+      if(removed[k]) {
+        NbRemoved++;
+      } else {
         // If the observation is not removed from the analysis
         // (removed if there is a NA in y, L or in the relevant covariates for this site and obs)
         iLambdaL += lambda(k)*L(k);
         iN += y(k);
-        NbRemoved += 1;
       }
       k++;
     }
-    if ((!NbRemoved) < J) {
+    if (NbRemoved < J) {
       if(iN>0) {
         ll += log(psi(i) * pow(iLambdaL, iN) / tgamma(iN + 1) * exp(-iLambdaL));
       } else {

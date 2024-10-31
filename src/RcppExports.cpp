@@ -564,8 +564,8 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP getDetVecs(void *, void *, void *, void *, void *);
-RcppExport SEXP getSingleDetVec(void *, void *, void *);
+RcppExport SEXP getDetVecs(SEXP, SEXP, SEXP, SEXP, SEXP);
+RcppExport SEXP getSingleDetVec(SEXP, SEXP, SEXP);
 
 static const R_CallMethodDef CallEntries[] = {
     {"_unmarked_get_lik_trans", (DL_FUNC) &_unmarked_get_lik_trans, 2},
