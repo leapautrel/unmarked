@@ -236,10 +236,10 @@ setGeneric("getP_internal", function(object) standardGeneric("getP_internal"))
 # Methods for various unmarkedFit types in unmarkedFit.R
 setGeneric("getY_internal", function(object) standardGeneric("getY_internal"))
 
-# Get data frame of covariates for predict
-# Methods in predict.R
-setGeneric("get_orig_data", function(object, type, ...){
-  standardGeneric("get_orig_data")
+# Get data frame of covariates for a given submodel type
+# Methods in unmarkedFit.R
+setGeneric("get_covariates", function(object, type, ...){
+  standardGeneric("get_covariates")
 })
 
 # Get estimates from unmarkedEstimateList
@@ -276,13 +276,13 @@ setGeneric("predict_by_chunk", function(object, ...){
   standardGeneric("predict_by_chunk")
 })
 
-# Internal method for predict
-# Methods for specific unmarkedFit types in predict.R
-setGeneric("predict_internal", function(object, ...) standardGeneric("predict_internal"))
-
 # Internal method for ranef
 # Methods for specific unmarkedFit types in ranef.R
 setGeneric("ranef_internal", function(object, ...) standardGeneric("ranef_internal"))
+
+# Internal method for predict
+# Methods for specific unmarkedFit types in predict.R
+setGeneric("predict_internal", function(object, ...) standardGeneric("predict_internal"))
 
 # Rebuild code used to call model
 # Methods in update.R

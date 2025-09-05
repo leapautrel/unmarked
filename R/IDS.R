@@ -419,33 +419,6 @@ IDS_convert_class <- function(inp, type, ds_type=NULL){
       AIC=inp@AIC, output="density", TMB=inp@TMB)
 }
 
-# This predict_internal method uses IDS_convert_class to allow pass-through to
-# distsamp predict method
-setMethod("predict_internal", "unmarkedFitIDS", function(object, type, newdata,
-          backTransform=TRUE, na.rm=FALSE, appendData=FALSE, level=0.95, re.form=NULL, ...){
-  stopifnot(type %in% names(object))
-
-  # Special case of phi and  no newdata
-  # We need a separate prediction for each detection dataset
-  if(type == "phi" & missing(newdata)){
-
-    dists <- names(object)[names(object) %in% c("ds", "pc", "oc")]
-    out <- lapply(dists, function(x){
-      conv <- IDS_convert_class(object, "phi", ds_type=x)
-      predict(conv, "det", backTransform=backTransform, appendData=appendData,
-              level=level, ...)
-    })
-    names(out) <- dists
-
-  } else { # Regular situation
-    conv <- IDS_convert_class(object, type)
-    type <- switch(type, lam="state", ds="det", pc="det", oc="det", phi="det")
-    out <- predict(conv, type=type, newdata=newdata, backTransform=backTransform, appendData=appendData,
-                   level=level, ...)
-  }
-  out
-})
-
 # Get availability for each data type and site as a probability
 setMethod("getAvail", "unmarkedFitIDS", function(object, ...){
   stopifnot("phi" %in% names(object))

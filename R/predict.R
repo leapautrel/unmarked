@@ -2,19 +2,19 @@
 
 # Common predict function for all fit types
 # with exception of occuMulti and occuMS (at the end of this file)
+# Calls internal fit-type specific function
 setMethod("predict", "unmarkedFit",
   function(object, type, newdata, backTransform = TRUE, na.rm = TRUE,
            appendData = FALSE, level=0.95, re.form=NULL, ...){
-
-  predict_internal(object=object, type=type, newdata=newdata,
-                   backTransform=backTransform, na.rm=na.rm, appendData=appendData,
-                   level=level, re.form=re.form, ...)
+  predict_internal(object, type, newdata, backTransform, na.rm, appendData,
+                   level, re.form, ...)
 })
 
+# Basic internal predict method for unmarkedFit objects
 setMethod("predict_internal", "unmarkedFit",
   function(object, type, newdata, backTransform = TRUE, na.rm = TRUE,
            appendData = FALSE, level=0.95, re.form=NULL, ...){
-
+  
   # If no newdata, get actual data
   if(missing(newdata) || is.null(newdata)) newdata <- object@data
 
@@ -29,8 +29,8 @@ setMethod("predict_internal", "unmarkedFit",
     pred_inps <- predict_inputs_from_umf(object, type, newdata, na.rm, re.form)
   } else {
     # If newdata is provided
-    # 1. Get original data and appropriate formula for type
-    orig_data <- get_orig_data(object, type)
+    # 1. Get original covariates and appropriate formula for type
+    orig_data <- get_covariates(object, type)
     orig_formula <- get_formula(object, type)
 
     # 2. If newdata is raster, get newdata from raster as data.frame
@@ -76,28 +76,6 @@ check_predict_arguments <- function(object, type, newdata){
   invisible(TRUE)
 }
 
-# Function to make model matrix and offset from formula, newdata and original data
-# This function makes sure factor levels in newdata match, and that
-# any functions in the formula are handled properly (e.g. scale)
-make_mod_matrix <- function(formula, data, newdata, re.form=NULL){
-  check_nested_formula_functions(formula)
-  form_nobars <- reformulas::nobars(formula)
-  mf <- model.frame(form_nobars, data, na.action=stats::na.pass)
-  X.terms <- stats::terms(mf)
-  fac_cols <- data[, sapply(data, is.factor), drop=FALSE]
-  xlevs <- lapply(fac_cols, levels)
-  xlevs <- xlevs[names(xlevs) %in% names(mf)]
-  nmf <- model.frame(X.terms, newdata, na.action=stats::na.pass, xlev=xlevs)
-  #X <- model.matrix(X.terms, newdata, xlev=xlevs)
-  X <- model.matrix(form_nobars, nmf)
-  offset <- model.offset(nmf)
-  if(is.null(re.form) & !is.null(reformulas::findbars(formula))){
-    Z <- get_Z(formula, data, newdata)
-    X <- cbind(X, Z)
-  }
-  list(X=X, offset=offset)
-}
-
 # Nested functions in formulas result in incorrect predictions.
 # This seems to be a problem with model.matrix and not something we can fix.
 check_nested_formula_functions <- function(formula){
@@ -132,64 +110,65 @@ predict_inputs_from_umf <- function(object, type, newdata, na.rm, re.form){
   list(X = select$X, offset = select$offset)
 }
 
-
-# Fit-type specific methods----------------------------------------------------
-
-# Fit type-specific methods to generate different components of prediction
-# 1. get_formula: Get formula for submodel type
-# 2. get_orig_data(): Get original dataset for use in building model frame
-# 3. predict_by_chunk(): Take inputs and generate predictions
-
-# Get correct individual formula based on type
-setMethod("get_formula", "unmarkedFit", function(object, type, ...){
-  object@formlist[[type]]
-})
-
-# When newdata is data.frame/raster, get original dataset
-# For use in building correct model frame
-# Note that here, the final year of yearlySiteCov data at each site is dropped
-# Because transition probabilities are not estimated for final year
-# this is appropriate for dynamic models but not temporary emigration models
-# for which the drop_final should be FALSE
-setMethod("get_orig_data", "unmarkedFit", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-
-  if(type %in% c("state", "psi", "lambda")){
-    datatype <- "site_covs"
-  } else if(type %in% c("col", "ext", "gamma", "omega", "iota")){
-    datatype <- "yearly_site_covs"
-  } else if(type %in% c("det", "fp", "b")){
-    datatype <- "obs_covs"
-  } else {
-    stop("Can't identify covariates for this type", call.=FALSE)
+# Convert a raster into a data frame to use as newdata
+newdata_from_raster <- function(object, vars){
+  if(inherits(object, "Raster")){
+    if(!requireNamespace("raster", quietly=TRUE)) stop("raster package required", call.=FALSE)
+    nd <- raster::as.data.frame(object)
+    # Handle factor rasters
+    is_fac <- raster::is.factor(object)
+    rem_string <- paste(paste0("^",names(object),"_"), collapse="|")
+    names(nd)[is_fac] <- gsub(rem_string, "", names(nd)[is_fac])
+  } else if(inherits(object, "SpatRaster")){
+    if(!requireNamespace("terra", quietly=TRUE)) stop("terra package required", call.=FALSE)
+    nd <- terra::as.data.frame(object, na.rm=FALSE)
   }
-  clean_covs[[datatype]]
-})
+  # Check if variables are missing
+  no_match <- vars[! vars %in% names(nd)]
+  if(length(no_match) > 0){
+    stop(paste0("Variable(s) ",paste(no_match, collapse=", "), " not found in raster(s)"),
+         call.=FALSE)
+  }
+  return(nd)
+}
 
-setMethod("get_orig_data", "unmarkedFitOccuCOP", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, psi = 'site_covs', lambda = 'obs_covs')
-  clean_covs[[datatype]]
-})
+# Convert predict output into a raster
+raster_from_predict <- function(pr, object, appendData){
+  if(inherits(object, "Raster")){
+    new_rast <- data.frame(raster::coordinates(object), pr)
+    new_rast <- raster::stack(raster::rasterFromXYZ(new_rast))
+    raster::crs(new_rast) <- raster::crs(object)
+    if(appendData) new_rast <- raster::stack(new_rast, object)
+  } else if(inherits(object, "SpatRaster")){
+    new_rast <- data.frame(terra::crds(object, na.rm=FALSE), pr)
+    new_rast <- terra::rast(new_rast, type="xyz")
+    terra::crs(new_rast) <- terra::crs(object)
+    if(appendData) new_rast <- c(new_rast, object)
+  }
+  new_rast
+}
 
-# DSO models need to use yearly site covs for detection
-setMethod("get_orig_data", "unmarkedFitDSO", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, lambda='site_covs', gamma='yearly_site_covs',
-                     omega='yearly_site_covs', iota='yearly_site_covs',
-                     det='yearly_site_covs')
-  clean_covs[[datatype]]
-})
-
-# Temporary emigration models do not drop final year
-setMethod("get_orig_data", "unmarkedFitG3", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, lambda='site_covs', psi='site_covs', 
-                     phi='yearly_site_covs', dist='yearly_site_covs',
-                     det='obs_covs', rem='obs_covs')
-  clean_covs[[datatype]]
-})
-
+# Function to make model matrix and offset from formula, newdata and original data
+# This function makes sure factor levels in newdata match, and that
+# any functions in the formula are handled properly (e.g. scale)
+make_mod_matrix <- function(formula, data, newdata, re.form=NULL){
+  check_nested_formula_functions(formula)
+  form_nobars <- reformulas::nobars(formula)
+  mf <- model.frame(form_nobars, data, na.action=stats::na.pass)
+  X.terms <- stats::terms(mf)
+  fac_cols <- data[, sapply(data, is.factor), drop=FALSE]
+  xlevs <- lapply(fac_cols, levels)
+  xlevs <- xlevs[names(xlevs) %in% names(mf)]
+  nmf <- model.frame(X.terms, newdata, na.action=stats::na.pass, xlev=xlevs)
+  #X <- model.matrix(X.terms, newdata, xlev=xlevs)
+  X <- model.matrix(form_nobars, nmf)
+  offset <- model.offset(nmf)
+  if(is.null(re.form) & !is.null(reformulas::findbars(formula))){
+    Z <- get_Z(formula, data, newdata)
+    X <- cbind(X, Z)
+  }
+  list(X=X, offset=offset)
+}
 
 # Take inputs (most importantly model matrix and offsets) and generate prediction
 # done in chunks for speed, 70 was optimal after tests
@@ -232,51 +211,7 @@ setMethod("predict_by_chunk", "unmarkedFit",
   out
 })
 
-
-# Raster handling functions----------------------------------------------------
-
-# Convert a raster into a data frame to use as newdata
-newdata_from_raster <- function(object, vars){
-  if(inherits(object, "Raster")){
-    if(!requireNamespace("raster", quietly=TRUE)) stop("raster package required", call.=FALSE)
-    nd <- raster::as.data.frame(object)
-    # Handle factor rasters
-    is_fac <- raster::is.factor(object)
-    rem_string <- paste(paste0("^",names(object),"_"), collapse="|")
-    names(nd)[is_fac] <- gsub(rem_string, "", names(nd)[is_fac])
-  } else if(inherits(object, "SpatRaster")){
-    if(!requireNamespace("terra", quietly=TRUE)) stop("terra package required", call.=FALSE)
-    nd <- terra::as.data.frame(object, na.rm=FALSE)
-  }
-  # Check if variables are missing
-  no_match <- vars[! vars %in% names(nd)]
-  if(length(no_match) > 0){
-    stop(paste0("Variable(s) ",paste(no_match, collapse=", "), " not found in raster(s)"),
-         call.=FALSE)
-  }
-  return(nd)
-}
-
-raster_from_predict <- function(pr, object, appendData){
-  if(inherits(object, "Raster")){
-    new_rast <- data.frame(raster::coordinates(object), pr)
-    new_rast <- raster::stack(raster::rasterFromXYZ(new_rast))
-    raster::crs(new_rast) <- raster::crs(object)
-    if(appendData) new_rast <- raster::stack(new_rast, object)
-  } else if(inherits(object, "SpatRaster")){
-    new_rast <- data.frame(terra::crds(object, na.rm=FALSE), pr)
-    new_rast <- terra::rast(new_rast, type="xyz")
-    terra::crs(new_rast) <- terra::crs(object)
-    if(appendData) new_rast <- c(new_rast, object)
-  }
-  new_rast
-}
-
-
-# pcount methods---------------------------------------------------------------
-
 # Special predict approach for ZIP distribution in pcount
-# All other distributions use default method
 setMethod("predict_by_chunk", "unmarkedFitPCount",
   function(object, type, level, xmat, offsets, chunk_size, backTransform=TRUE,
            re.form=NULL, ...){
@@ -334,11 +269,6 @@ setMethod("predict_by_chunk", "unmarkedFitPCount",
                           backTransform, re.form, ...)
 })
 
-
-# Dail-Madsen model methods----------------------------------------------------
-
-# Includes unmarkedFitPCO, unmarkedFitMMO, unmarkedFitDSO
-
 # Special handling for ZIP distribution
 setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
   function(object, type, level, xmat, offsets, chunk_size, backTransform=TRUE,
@@ -356,6 +286,72 @@ setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
   }
   methods::callNextMethod(object, type, level, xmat, offsets, chunk_size,
                           backTransform, re.form, ...)
+})
+
+# IDS--------------------------------------------------------------------------
+
+# Uses IDS_convert_class to allow pass-through to prediction using an unmarkedFitDS object
+setMethod("predict_internal", "unmarkedFitIDS", function(object, type, newdata,
+          backTransform=TRUE, na.rm=FALSE, appendData=FALSE, level=0.95, re.form=NULL, ...){
+  stopifnot(type %in% names(object))
+
+  # Special case of phi and  no newdata
+  # We need a separate prediction for each detection dataset
+  if(type == "phi" & missing(newdata)){
+
+    dists <- names(object)[names(object) %in% c("ds", "pc", "oc")]
+    out <- lapply(dists, function(x){
+      conv <- IDS_convert_class(object, "phi", ds_type=x)
+      predict(conv, "det", backTransform=backTransform, appendData=appendData,
+              level=level, ...)
+    })
+    names(out) <- dists
+
+  } else { # Regular situation
+    conv <- IDS_convert_class(object, type)
+    type <- switch(type, lam="state", ds="det", pc="det", oc="det", phi="det")
+    out <- predict(conv, type=type, newdata=newdata, backTransform=backTransform, appendData=appendData,
+                   level=level, ...)
+  }
+  out
+})
+
+
+# occuComm---------------------------------------------------------------------
+
+setMethod("predict_internal", "unmarkedFitOccuComm",
+  function(object, type, newdata, backTransform = TRUE, na.rm = TRUE,
+           appendData = FALSE, level=0.95, re.form=NULL, ...){
+
+  na.rm <- FALSE
+  S <- length(object@data@ylist)
+  M <- numSites(object@data)
+  J <- obsNum(object@data)
+  new_object <- object
+  newform <- multispeciesFormula(object@formula, object@data@speciesCovs)
+  new_object@formula <- newform$formula
+  new_object@data <- process_multispecies_umf(object@data, newform$covs)
+  new_object <- as(new_object, "unmarkedFitOccu")
+
+  if(missing(newdata)) newdata <- NULL
+  pr <- predict(new_object, type=type, newdata=newdata, backTransform=backTransform,
+                na.rm=na.rm, appendData=appendData, level=level, re.form=re.form, ...)
+
+  if(!is.null(newdata)){ # if using newdata, return now
+    return(pr) 
+  }
+
+  if(type == "state"){
+    inds <- split(1:nrow(pr), rep(1:length(object@data@ylist), each=M))
+  } else if(type == "det"){
+    inds <- split(1:nrow(pr), rep(1:length(object@data@ylist), each=M*J))
+  }
+  names(inds) <- names(object@data@ylist)
+  lapply(inds, function(x){ 
+         out <- pr[x,,drop=FALSE]
+         rownames(out) <- NULL
+         out
+  })
 })
 
 
