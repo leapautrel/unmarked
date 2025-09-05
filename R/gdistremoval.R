@@ -337,11 +337,6 @@ setMethod("getP_internal", "unmarkedFitGDR", function(object){
   out
 })
 
-setMethod("residuals_internal", "unmarkedFitGDR", function(object){
-  ft <- fitted(object)
-  list(dist=object@data@yDistance - ft$dist, rem=object@data@yRemoval-ft$rem)
-})
-
 # ranef
 
 setMethod("ranef_internal", "unmarkedFitGDR", function(object, ...){

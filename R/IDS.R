@@ -444,28 +444,6 @@ setMethod("getP_internal", "unmarkedFitIDS", function(object){
   out
 })
 
-
-setMethod("residuals_internal", "unmarkedFitIDS", function(object){
-
-  dists <- names(object)[names(object) %in% c("ds", "pc")]
-
-  # distance and N-mix data
-  out <- lapply(dists, function(x){
-    conv <- IDS_convert_class(object, type=x)
-    residuals(conv)
-  })
-  names(out) <- dists
-
-  # occupancy data
-  if("oc" %in% names(object)){
-    y <- object@dataOC@y
-    ft <- fitted(object)$oc
-    out$oc <- y - ft
-  }
-
-  out
-})
-
 setMethod("hist", "unmarkedFitIDS", function(x, lwd=1, lty=1, ...){
 
   conv <- IDS_convert_class(x, type='ds')

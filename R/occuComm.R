@@ -351,15 +351,6 @@ setMethod("getY_internal", "unmarkedFitOccuComm", function(object) {
             object@data@ylist
 })
 
-setMethod("residuals_internal", "unmarkedFitOccuComm", function(object) {
-  ylist <- getY(object)
-  fitlist <- fitted(object)
-
-  mapply(function(x, y){
-    x - y
-  }, x = ylist, y = fitlist, SIMPLIFY = FALSE)
-})
-
 setMethod("SSE", "unmarkedFitOccuComm", function(fit, ...){
     r <- do.call(rbind, residuals(fit))
     return(c(SSE = sum(r^2, na.rm=T)))
