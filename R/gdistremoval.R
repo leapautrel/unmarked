@@ -337,55 +337,6 @@ setMethod("getP_internal", "unmarkedFitGDR", function(object){
   out
 })
 
-setMethod("fitted_internal", "unmarkedFitGDR", function(object){
-
-  T <- object@data@numPrimary
-
-  # Adjust log lambda when there is a random intercept
-  #loglam <- log(predict(object, "lambda", level=NULL)$Predicted)
-  #lam <- exp(loglam)
-  lam <- predict(object, "lambda", level=NULL)$Predicted
-  if(object@output == "density"){
-    ua <- getUA(object@data)
-    A <- rowSums(ua$a)
-    switch(object@data@unitsIn, m = A <- A / 1e6, km = A <- A)
-    switch(object@unitsOut,ha = A <- A * 100, kmsq = A <- A)
-    lam <- lam * A
-  }
-
-  gp <- getP(object)
-  rem <- gp$rem
-  dist <- gp$dist
-  if(T > 1) phi <- gp$phi
-  p_rem <- apply(rem, c(1,3), sum)
-  p_dist <- apply(dist, c(1,3), sum)
-
-  for (t in 1:T){
-    rem[,,t] <- rem[,,t] * p_dist[,rep(t, ncol(rem[,,t]))]
-    dist[,,t] <- dist[,,t] * p_rem[,rep(t,ncol(dist[,,t]))]
-    if(T > 1){
-      rem[,,t] <- rem[,,t] * phi[,rep(t, ncol(rem[,,t]))]
-      dist[,,t] <- dist[,,t] * phi[,rep(t, ncol(dist[,,t]))]
-    }
-  }
-
-  if(T > 1){
-    rem_final <- rem[,,1]
-    dist_final <- dist[,,1]
-    for (t in 2:T){
-      rem_final <- cbind(rem_final, rem[,,t])
-      dist_final <- cbind(dist_final, dist[,,t])
-    }
-  } else {
-    rem_final <- drop(rem)
-    dist_final <- drop(dist)
-  }
-
-  ft_rem <- lam * rem_final
-  ft_dist <- lam * dist_final
-  list(dist=ft_dist, rem=ft_rem)
-})
-
 setMethod("residuals_internal", "unmarkedFitGDR", function(object){
   ft <- fitted(object)
   list(dist=object@data@yDistance - ft$dist, rem=object@data@yRemoval-ft$rem)

@@ -104,22 +104,6 @@ setMethod("getP_internal", "unmarkedFitOccuCOP", function(object) {
 })
 
 
-## fitted ----
-setMethod("fitted_internal", "unmarkedFitOccuCOP", function(object) {
-  data <- object@data
-  M = nrow(getY(data))
-  J = ncol(getY(data))
-  des <- getDesign(data, object@formlist, na.rm = FALSE)
-  estim_psi = as.numeric(do.call(object["psi"]@invlink,
-                                 list(as.matrix(des$X_psi %*% coef(object, 'psi')))))
-  estim_lambda = do.call(object["lambda"]@invlink, 
-                         list(matrix(
-                           as.numeric(des$X_lambda %*% coef(object, 'lambda')),
-                           nrow = M, ncol = J, byrow = T)))
-  return(estim_psi * estim_lambda)
-})
-
-
 ## plot ----
 setMethod("residual_plot", "unmarkedFitOccuCOP", function(x, ...) {
   y <- getY(x)

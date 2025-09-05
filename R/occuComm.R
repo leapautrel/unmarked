@@ -347,15 +347,6 @@ setMethod("getP_internal", "unmarkedFitOccuComm", function(object){
   p
 })
 
-setMethod("fitted_internal", "unmarkedFitOccuComm", function(object){
-  state <- predict(object, type = "state", level=NULL, na.rm=FALSE)
-  p <- getP(object, na.rm = FALSE) # P(detection | presence)
-  fitted <- mapply(function(x, y){
-    x$Predicted * y
-  }, x = state, y = p, SIMPLIFY=FALSE)
-  fitted
-})
-
 setMethod("getY_internal", "unmarkedFitOccuComm", function(object) {
             object@data@ylist
 })

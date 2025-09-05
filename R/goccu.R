@@ -153,25 +153,6 @@ setMethod("getP_internal", "unmarkedFitGOccu", function(object){
   p
 })
 
-setMethod("fitted_internal", "unmarkedFitGOccu", function(object){
-  # TODO: Use predict here
-  M <- numSites(object@data)
-  JT <- obsNum(object@data) 
-  gd <- getDesign(object@data, object@formlist, na.rm=FALSE)
-
-  psi <- drop(plogis(gd$X_psi %*% coef(object, "psi")))
-  psi <- matrix(psi, nrow=M, ncol=JT)
-
-  phi <- drop(plogis(gd$X_phi %*% coef(object, "phi")))
-  phi <- rep(phi, each = JT / object@data@numPrimary)
-  phi <- matrix(phi, nrow=M, ncol=JT, byrow=TRUE)
-
-  p <- getP(object)
-
-  psi * phi * p
-})
-
-
 # based on ranef for GPC
 setMethod("ranef_internal", "unmarkedFitGOccu", function(object, ...){
 

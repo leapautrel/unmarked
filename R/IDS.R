@@ -431,46 +431,6 @@ setMethod("getAvail", "unmarkedFitIDS", function(object, ...){
   out
 })
 
-# Fitted method returns a list of matrices, one per data type
-setMethod("fitted_internal", "unmarkedFitIDS", function(object){
-
-  dists <- names(object)[names(object) %in% c("ds", "pc")]
-
-  # If there is an availability model, get availability
-  # Otherwise set it to 1
-  avail <- list(ds=1, pc=1, oc=1)
-  if("phi" %in% names(object)){
-    avail <- getAvail(object)
-  }
-
-  # fitted for distance and N-mix data components
-  out <- lapply(dists, function(x){
-    conv <- IDS_convert_class(object, type=x)
-    fitted(conv) * avail[[x]]
-  })
-  names(out) <- dists
-
-  # fitted for occupancy data
-  if("oc" %in% names(object)){
-    conv <- IDS_convert_class(object, type="oc")
-    lam <- predict(conv, 'state', level = NULL, na.rm=FALSE)$Predicted
-    A <- pi*max(conv@data@dist.breaks)^2
-    switch(conv@data@unitsIn,
-            m = A <- A / 1e6,
-            km = A <- A)
-    switch(conv@unitsOut,
-            m = A <- A * 1e6,
-            ha = A <- A * 100,
-            kmsq = A <- A)
-    lam <- lam * A
-
-    p <- getP(conv, na.rm=FALSE) * avail$oc
-    out$oc <- 1 - exp(-lam*p) ## analytical integration.
-  }
-
-  out
-})
-
 # getP returns detection probability WITHOUT availability
 setMethod("getP_internal", "unmarkedFitIDS", function(object){
 
