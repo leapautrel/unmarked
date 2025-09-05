@@ -101,8 +101,8 @@ setMethod("fitted_internal", "unmarkedFitDS", function(object){
 })
 
 
-# This covers unmarkedFitGDS too
-setMethod("fitted_internal", "unmarkedFitGMM", function(object){
+# This covers GMM and GDS too
+setMethod("fitted_internal", "unmarkedFitGPC", function(object){
   # E[y_itj] = M_i * phi_it * cp_itj
   M <- numSites(object@data)
   T <- object@data@numPrimary

@@ -396,10 +396,10 @@ setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
 
 # Temporary emigration models--------------------------------------------------
 
-# All inherit from GMM so only one set of methods is required
+# All inherit from G3 so only one set of methods is required
 # (except GDR which has its own predict method right now)
 
-setMethod("get_orig_data", "unmarkedFitGMM", function(object, type, ...){
+setMethod("get_orig_data", "unmarkedFitG3", function(object, type, ...){
   clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
   datatype <- switch(type, lambda='site_covs', phi='yearly_site_covs',
                      det='obs_covs')

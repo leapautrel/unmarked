@@ -84,8 +84,8 @@ setMethod("rebuild_call", "unmarkedFitDSO", function(object){
   cl
 })
 
-# Also covers unmarkedFitGPC
-setMethod("rebuild_call", "unmarkedFitGMM", function(object){ 
+# Also covers unmarkedFitGMM
+setMethod("rebuild_call", "unmarkedFitGPC", function(object){ 
   cl <- methods::callNextMethod(object)
   cl[["lambdaformula"]] <- object@formlist$lambda
   cl[["phiformula"]] <- object@formlist$phi

@@ -341,9 +341,8 @@ setMethod("ranef_internal", "unmarkedFitOccuFP", function(object, ...){
 })
 
 
-# Function that works for both GMM and GDS
-# Avoiding class union that doesn't work for some reason
-ranef_GMM_GDS <- function(object, ...){
+# Function that works for both GMM and GDS (which inherits from GMM)
+setMethod("ranef_internal", "unmarkedFitGMM", function(object, ...){
     data <- object@data
     y <- getY(data)
     nSites <- numSites(data)
@@ -414,15 +413,6 @@ ranef_GMM_GDS <- function(object, ...){
         post[i,,1] <- fudge/sum(fudge)
     }
     new("unmarkedRanef", post=post)
-
-}
-
-setMethod("ranef_internal", "unmarkedFitGDS", function(object, ...){
-  ranef_GMM_GDS(object, ...)
-})
-
-setMethod("ranef_internal", "unmarkedFitGMM", function(object, ...){
-  ranef_GMM_GDS(object, ...)
 })
 
 

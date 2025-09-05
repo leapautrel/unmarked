@@ -363,14 +363,19 @@ setClass("unmarkedFitPCount",
 
 ### Temporary emigration (TE) model types
 
-# TE occupancy
-setClass("unmarkedFitGOccu", contains = "unmarkedFit")
+setClass("unmarkedFitG3", contains = "unmarkedFit")
 
-# TE multinomial mixture
-setClass("unmarkedFitGMM",
+# TE occupancy
+setClass("unmarkedFitGOccu", contains = "unmarkedFitG3")
+
+# TE N-mixture
+setClass("unmarkedFitGPC",
   representation(mixture = "character", K = "numeric"),
-  contains = "unmarkedFit"
+  contains = "unmarkedFitG3"
 )
+
+# TE multinomial N-mixture model
+setClass("unmarkedFitGMM", contains = "unmarkedFitGPC")
 
 # TE distance sampling
 setClass("unmarkedFitGDS",
@@ -380,9 +385,6 @@ setClass("unmarkedFitGDS",
 
 # TE distance-removal model
 setClass("unmarkedFitGDR", contains = "unmarkedFitGDS")
-
-# TE point count model
-setClass("unmarkedFitGPC", contains = "unmarkedFitGMM")
 
 
 ### Open-population models ###
