@@ -201,11 +201,6 @@ setGeneric("yearlySiteCovs<-",
 
 # Generics for internal unmarked-specific functions----------------------------
 
-# Methods in predict.R
-setGeneric("check_predict_arguments", function(object, ...){
-  standardGeneric("check_predict_arguments")
-})
-
 # Internal method for fitted
 # Methods for different unmarkedFit types in fitted.R
 setGeneric("fitted_internal", function(object){

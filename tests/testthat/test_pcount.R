@@ -151,11 +151,11 @@ test_that("pcount predict works",{
 
   fm2 <- pcount(~1 ~1, umf1, K=40, mixture="NB")
   E2.1 <- predict(fm2, type="state")
-  expect_error(predict(fm2, type="alpha"))
+  expect_equal(predict(fm2, type="alpha")$Predicted, exp(unname(coef(fm2))[3]))
 
   fm3 <- pcount(~1 ~1, umf1, K=40, mixture="ZIP")
   E3.1 <- predict(fm3, type="state")
-  expect_error(predict(fm3, type="psi"))
+  expect_equal(predict(fm3, type="psi")$Predicted, plogis(unname(coef(fm3))[3]))
   expect_equal(E3.1[1,1], 1.818512, tol=1e-6)
 
 })

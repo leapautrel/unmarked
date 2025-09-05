@@ -62,6 +62,20 @@ setMethod("predict_internal", "unmarkedFit",
 
 })
 
+check_predict_arguments <- function(object, type, newdata){
+  # Check if type is supported (i.e., is it in names(object)?)
+  opts <- names(object)
+  if(!type %in% opts){
+    stop("Valid types are ", paste(opts, collapse=", "), call.=FALSE)
+  }
+
+  # Check newdata class
+  if(!inherits(newdata, c("unmarkedFrame", "data.frame", "RasterLayer", "RasterStack", "SpatRaster"))){
+    stop("newdata must be unmarkedFrame, data.frame, RasterLayer, RasterStack, or SpatRaster", call.=FALSE)
+  }
+  invisible(TRUE)
+}
+
 # Function to make model matrix and offset from formula, newdata and original data
 # This function makes sure factor levels in newdata match, and that
 # any functions in the formula are handled properly (e.g. scale)
@@ -99,32 +113,12 @@ check_nested_formula_functions <- function(formula){
 # Fit-type specific methods----------------------------------------------------
 
 # Fit type-specific methods to generate different components of prediction
-# 1. check_predict_arguments(): Check arguments
-# 2. predict_inputs_from_umf(): Generating inputs from an unmarked
+# 1. predict_inputs_from_umf(): Generating inputs from an unmarked
 #    frame (e.g. when no newdata) using getDesign
-# 3. get_formula: Get formula for submodel type
-# 4. get_orig_data(): Get original dataset for use in building model frame
-# 5. predict_by_chunk(): Take inputs and generate predictions
+# 2. get_formula: Get formula for submodel type
+# 3. get_orig_data(): Get original dataset for use in building model frame
+# 4. predict_by_chunk(): Take inputs and generate predictions
 # Basic methods are shown below; fit type-specific methods in their own sections
-
-setMethod("check_predict_arguments", "unmarkedFit",
-  function(object, type, newdata, ...){
-  # Check if type is supported (i.e., is it in names(object)?)
-  check_type(object, type)
-
-  # Check newdata class
-  if(!inherits(newdata, c("unmarkedFrame", "data.frame", "RasterLayer", "RasterStack", "SpatRaster"))){
-    stop("newdata must be unmarkedFrame, data.frame, RasterLayer, RasterStack, or SpatRaster", call.=FALSE)
-  }
-  invisible(TRUE)
-})
-
-# Check if predict type is valid
-check_type <- function(mod, type){
-  opts <- names(mod)
-  if(type %in% opts) return(invisible(TRUE))
-  stop("Valid types are ", paste(opts, collapse=", "), call.=FALSE)
-}
 
 setMethod("predict_inputs_from_umf", "unmarkedFit",
   function(object, type, newdata, na.rm, re.form){
@@ -284,14 +278,6 @@ raster_from_predict <- function(pr, object, appendData){
 
 # pcount methods---------------------------------------------------------------
 
-setMethod("check_predict_arguments", "unmarkedFitPCount",
-  function(object, type, newdata, ...){
-  if(type %in% c("psi", "alpha")){
-    stop(paste0(type, " is scalar. Use backTransform instead."), call.=FALSE)
-  }
-  methods::callNextMethod(object, type, newdata)
-})
-
 # Special predict approach for ZIP distribution in pcount
 # All other distributions use default method
 setMethod("predict_by_chunk", "unmarkedFitPCount",
@@ -355,22 +341,6 @@ setMethod("predict_by_chunk", "unmarkedFitPCount",
 # Dail-Madsen model methods----------------------------------------------------
 
 # Includes unmarkedFitPCO, unmarkedFitMMO, unmarkedFitDSO
-
-setMethod("check_predict_arguments", "unmarkedFitDailMadsen",
-  function(object, type, newdata, ...){
-  if(type %in% c("psi", "alpha", "scale")){
-    stop(paste0(type, " is scalar. Use backTransform instead."), call.=FALSE)
-  }
-  dynamics <- object@dynamics
-  immigration <- tryCatch(object@immigration, error=function(e) FALSE)
-  if(identical(dynamics, "notrend") & identical(type, "gamma"))
-    stop("gamma is a derived parameter for this model: (1-omega)*lambda")
-  if(identical(dynamics, "trend") && identical(type, "omega"))
-    stop("omega is not a parameter in the dynamics='trend' model")
-  if(!immigration && identical(type, "iota"))
-    stop("iota is not a parameter in the immigration=FALSE model")
-  methods::callNextMethod(object, type, newdata)
-})
 
 # Special handling for ZIP distribution
 setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
