@@ -93,14 +93,6 @@ setMethod("summary", "unmarkedFrameOccuCOP", function(object,...) {
 })
 
 
-## get_orig_data ----
-setMethod("get_orig_data", "unmarkedFitOccuCOP", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, psi = 'site_covs', lambda = 'obs_covs')
-  clean_covs[[datatype]]
-})
-
-
 ## getP ----
 setMethod("getP_internal", "unmarkedFitOccuCOP", function(object) {
   data <- object@data

@@ -145,13 +145,6 @@ goccu <- function(psiformula, phiformula, pformula, data,
 
 # Methods
 
-setMethod("get_orig_data", "unmarkedFitGOccu", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, psi='site_covs', phi='yearly_site_covs',
-                     det='obs_covs')
-  clean_covs[[datatype]]
-})
-
 setMethod("getP_internal", "unmarkedFitGOccu", function(object){
   M <- numSites(object@data)
   J <- ncol(object@data@y)

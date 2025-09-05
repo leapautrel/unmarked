@@ -156,15 +156,49 @@ setMethod("get_formula", "unmarkedFit", function(object, type, ...){
 
 # When newdata is data.frame/raster, get original dataset
 # For use in building correct model frame
-# Note that by default, final year of yearlySiteCov data at each site is dropped
+# Note that here, the final year of yearlySiteCov data at each site is dropped
 # Because transition probabilities are not estimated for final year
 # this is appropriate for dynamic models but not temporary emigration models
 # for which the drop_final should be FALSE
 setMethod("get_orig_data", "unmarkedFit", function(object, type, ...){
   clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, state='site_covs', det='obs_covs')
+
+  if(type %in% c("state", "psi", "lambda")){
+    datatype <- "site_covs"
+  } else if(type %in% c("col", "ext", "gamma", "omega", "iota")){
+    datatype <- "yearly_site_covs"
+  } else if(type %in% c("det", "fp", "b")){
+    datatype <- "obs_covs"
+  } else {
+    stop("Can't identify covariates for this type", call.=FALSE)
+  }
   clean_covs[[datatype]]
 })
+
+setMethod("get_orig_data", "unmarkedFitOccuCOP", function(object, type, ...){
+  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
+  datatype <- switch(type, psi = 'site_covs', lambda = 'obs_covs')
+  clean_covs[[datatype]]
+})
+
+# DSO models need to use yearly site covs for detection
+setMethod("get_orig_data", "unmarkedFitDSO", function(object, type, ...){
+  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
+  datatype <- switch(type, lambda='site_covs', gamma='yearly_site_covs',
+                     omega='yearly_site_covs', iota='yearly_site_covs',
+                     det='yearly_site_covs')
+  clean_covs[[datatype]]
+})
+
+# Temporary emigration models do not drop final year
+setMethod("get_orig_data", "unmarkedFitG3", function(object, type, ...){
+  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
+  datatype <- switch(type, lambda='site_covs', psi='site_covs', 
+                     phi='yearly_site_covs', dist='yearly_site_covs',
+                     det='obs_covs', rem='obs_covs')
+  clean_covs[[datatype]]
+})
+
 
 # Take inputs (most importantly model matrix and offsets) and generate prediction
 # done in chunks for speed, 70 was optimal after tests
@@ -318,25 +352,6 @@ setMethod("predict_by_chunk", "unmarkedFitPCount",
 })
 
 
-# colext methods---------------------------------------------------------------
-
-setMethod("get_orig_data", "unmarkedFitColExt", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, psi='site_covs', col='yearly_site_covs',
-                     ext='yearly_site_covs', det='obs_covs')
-  clean_covs[[datatype]]
-})
-
-
-# occuFP methods---------------------------------------------------------------
-
-setMethod("get_orig_data", "unmarkedFitOccuFP", function(object, type, ...){
-  # Get obs data if fp, b, or det
-  new_type <- ifelse(type %in% c("fp", "b"), "det", type)
-  methods::callNextMethod(object, new_type, ...)
-})
-
-
 # Dail-Madsen model methods----------------------------------------------------
 
 # Includes unmarkedFitPCO, unmarkedFitMMO, unmarkedFitDSO
@@ -357,23 +372,6 @@ setMethod("check_predict_arguments", "unmarkedFitDailMadsen",
   methods::callNextMethod(object, type, newdata)
 })
 
-setMethod("get_orig_data", "unmarkedFitDailMadsen", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, lambda='site_covs', gamma='yearly_site_covs',
-                     omega='yearly_site_covs', iota='yearly_site_covs',
-                     det='obs_covs')
-  clean_covs[[datatype]]
-})
-
-# This method differs for DSO
-setMethod("get_orig_data", "unmarkedFitDSO", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, lambda='site_covs', gamma='yearly_site_covs',
-                     omega='yearly_site_covs', iota='yearly_site_covs',
-                     det='yearly_site_covs')
-  clean_covs[[datatype]]
-})
-
 # Special handling for ZIP distribution
 setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
   function(object, type, level, xmat, offsets, chunk_size, backTransform=TRUE,
@@ -391,50 +389,6 @@ setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
   }
   methods::callNextMethod(object, type, level, xmat, offsets, chunk_size,
                           backTransform, re.form, ...)
-})
-
-
-# Temporary emigration models--------------------------------------------------
-
-# All inherit from G3 so only one set of methods is required
-# (except GDR which has its own predict method right now)
-
-setMethod("get_orig_data", "unmarkedFitG3", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, lambda='site_covs', phi='yearly_site_covs',
-                     det='obs_covs')
-  clean_covs[[datatype]]
-})
-
-
-# occuTTD----------------------------------------------------------------------
-
-# Identical to colext
-
-setMethod("get_orig_data", "unmarkedFitOccuTTD", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, psi='site_covs', col='yearly_site_covs',
-                     ext='yearly_site_covs', det='obs_covs')
-  clean_covs[[datatype]]
-})
-
-
-# nmixTTD----------------------------------------------------------------------
-
-setMethod("get_orig_data", "unmarkedFitNmixTTD", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, state='site_covs', det='obs_covs')
-  clean_covs[[datatype]]
-})
-
-
-# gdistremoval-----------------------------------------------------------------
-
-setMethod("get_orig_data", "unmarkedFitGDR", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, lambda='site_covs', phi='yearly_site_covs',
-                     dist='yearly_site_covs', rem='obs_covs')
-  clean_covs[[datatype]]
 })
 
 
