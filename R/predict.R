@@ -363,13 +363,6 @@ setMethod("predict_by_chunk", "unmarkedFitDailMadsen",
 
 # bespoke predict method since it has numerious unusual options
 # and requires bootstrapping
-
-# This method is used by simulate but not by predict
-setMethod("get_formula", "unmarkedFitOccuMulti", function(object, type, ...){
-  switch(type, state=object@stateformulas,
-               det=object@detformulas)
-})
-
 setMethod("predict", "unmarkedFitOccuMulti",
      function(object, type, newdata,
               level=0.95, species=NULL, cond=NULL, nsims=100,
@@ -399,7 +392,7 @@ setMethod("predict", "unmarkedFitOccuMulti",
 
   maxOrder <- object@call$maxOrder
   if(is.null(maxOrder)) maxOrder <- length(object@data@ylist)
-  dm <- getDesign(object@data,object@detformulas,object@stateformulas,
+  dm <- getDesign(object@data, object@formlist,
                   maxOrder, na.rm=F, newdata=newdata, type=type)
 
   params <- coef(object)
@@ -563,13 +556,6 @@ setMethod("predict", "unmarkedFitOccuMulti",
 # occuMS-----------------------------------------------------------------------
 
 # bespoke predict method since it requires bootstrapping
-
-# This method is used by simulate by not by predict
-setMethod("get_formula", "unmarkedFitOccuMS", function(object, type, ...){
-  switch(type, psi=object@psiformulas, phi=object@phiformulas,
-               det=object@detformulas)
-})
-
 setMethod("predict", "unmarkedFitOccuMS",
      function(object, type, newdata, level=0.95, nsims=100, ...)
 {
@@ -596,8 +582,7 @@ setMethod("predict", "unmarkedFitOccuMS",
   }
 
   S <- object@data@numStates
-  gd <- getDesign(object@data,object@psiformulas,object@phiformulas,
-                  object@detformulas, object@parameterization, na.rm=F,
+  gd <- getDesign(object@data, object@formlist, object@parameterization, na.rm=F,
                   newdata=newdata, type=type)
 
   #Index guide used to organize p values

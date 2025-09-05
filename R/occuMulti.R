@@ -18,7 +18,9 @@ occuMulti <- function(detformulas, stateformulas,  data, maxOrder,
     }
     detformulas <- rep('~1',length(data@ylist))
   }
-  all_forms <- c(detformulas, stateformulas)
+
+  formulas <- list(det = detformulas, state = stateformulas)
+  all_forms <- unlist(formulas)
   all_forms <- all_forms[!all_forms %in% c("0","~0")]
   check_no_support(lapply(all_forms, as.formula))
 
@@ -26,7 +28,7 @@ occuMulti <- function(detformulas, stateformulas,  data, maxOrder,
   if(penalty < 0) stop("Penalty term must be >= 0")
 
   #Get design matrices and indices
-  designMats <- getDesign(data, detformulas, stateformulas, maxOrder, warn=!silent)
+  designMats <- getDesign(data, formulas, maxOrder, warn=!silent)
 
   #Don't think there is a better way...
   N <- designMats$N; S <- designMats$S; J <- designMats$J; M <- designMats$M
@@ -133,7 +135,7 @@ occuMulti <- function(detformulas, stateformulas,  data, maxOrder,
   cl$maxOrder <- maxOrder
 
   umfit <- new("unmarkedFitOccuMulti", fitType = "occuMulti", call = cl,
-                detformulas = detformulas, stateformulas = stateformulas,
+                formlist = formulas,
                 data = data,
                 #sitesRemoved = designMats$removed.sites,
                 estimates = estimateList, AIC = fmAIC, opt = fm,
@@ -163,7 +165,7 @@ occuMultiLogLik <- function(fit, data){
   maxOrder <- fit@call$maxOrder
   if(is.null(maxOrder)) maxOrder <- length(fit@data@ylist)
 
-  dm <- getDesign(data, fit@detformulas, fit@stateformulas,
+  dm <- getDesign(data, fit@formlist,
                   maxOrder=maxOrder, warn=FALSE)
 
   dmF <- Matrix::Matrix(dm$dmF, sparse=TRUE)

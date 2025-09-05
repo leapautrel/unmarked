@@ -7,12 +7,11 @@ setMethod("fl_getY", "unmarkedFit", function(fit, ...){
 setMethod("fl_getY", "unmarkedFitOccuMulti", function(fit, ...){
   maxOrder <- fit@call$maxOrder
   if(is.null(maxOrder)) maxOrder <- length(fit@data@ylist)
-  getDesign(getData(fit), fit@detformulas, fit@stateformulas, maxOrder)$y
+  getDesign(getData(fit), fit@formlist, maxOrder)$y
 })
 
 setMethod("fl_getY", "unmarkedFitOccuMS", function(fit, ...){
-  getDesign(getData(fit), fit@psiformulas, fit@phiformulas,
-            fit@detformulas, fit@parameterization)$y
+  getDesign(getData(fit), fit@formlist, fit@parameterization)$y
 })
 
 # constructor of unmarkedFitList objects

@@ -530,8 +530,7 @@ setMethod("getDesign", "unmarkedFrameOccuFP",
 
 # occuMS
 setMethod("getDesign", "unmarkedFrameOccuMS",
-    function(umf, psiformulas, phiformulas, detformulas, prm, na.rm=TRUE,
-             newdata=NULL, type="psi")
+    function(umf, formulas, prm, na.rm=TRUE, newdata=NULL, type="psi")
 {
 
   N <- numSites(umf)
@@ -543,6 +542,9 @@ setMethod("getDesign", "unmarkedFrameOccuMS",
   nphi <- S^2 - S #Number of free phi values
   np <- S * (S-1) / 2 #Number of free p values
 
+  psiformulas <- formulas$state
+  phiformulas <- formulas$transition
+  detformulas <- formulas$det
   if(length(psiformulas) != npsi){
     stop(paste(npsi,'formulas are required in psiformulas vector'))
   }
@@ -778,15 +780,16 @@ setMethod("getDesign", "unmarkedFrameOccuMS",
 
 # occuMulti
 setMethod("getDesign", "unmarkedFrameOccuMulti",
-    function(umf, detformulas, stateformulas, maxOrder, na.rm=TRUE, warn=FALSE,
+    function(umf, formulas, maxOrder, na.rm=TRUE, warn=FALSE,
              newdata=NULL, type="state")
 {
 
   #Format formulas
+  stateformulas <- formulas$state
+  detformulas <- formulas$det
   #Workaround for parameters fixed at 0
   fixed0 <- stateformulas %in% c("~0","0")
   stateformulas[fixed0] <- "~1"
-
   stateformulas <- lapply(stateformulas,as.formula)
   detformulas <- lapply(detformulas,as.formula)
 

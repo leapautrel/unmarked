@@ -734,7 +734,7 @@ setMethod("simulate_internal", "unmarkedFitOccuMulti",
     maxOrder <- object@call$maxOrder
     # TODO: put maxOrder in output object?
     if(is.null(maxOrder)) maxOrder <- length(object@data@ylist)
-    dm <- getDesign(object@data, object@detformulas, object@stateformulas, maxOrder)
+    dm <- getDesign(object@data, object@formlist, maxOrder)
     # TODO: standardize this
     psi <- predict(object, "state", level=NULL)$Predicted
     p <- getP(object)

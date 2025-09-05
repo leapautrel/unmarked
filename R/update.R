@@ -139,10 +139,10 @@ setMethod("rebuild_call", "unmarkedFitOccuFP", function(object){
 
 setMethod("rebuild_call", "unmarkedFitOccuMS", function(object){ 
   cl <- methods::callNextMethod(object)
-  cl[["detformulas"]] <- quote(object@detformulas)
-  cl[["psiformulas"]] <- quote(object@psiformulas)
-  if(!all(is.na(object@phiformulas))){
-    cl[["phiformulas"]] <- quote(object@phiformulas)
+  cl[["detformulas"]] <- quote(object@formlist$det)
+  cl[["psiformulas"]] <- quote(object@formlist$state)
+  if(!all(is.na(object@formlist$transition))){
+    cl[["phiformulas"]] <- quote(object@formlist$transition)
   }
   cl[["parameterization"]] <- object@parameterization
   cl
@@ -150,8 +150,8 @@ setMethod("rebuild_call", "unmarkedFitOccuMS", function(object){
 
 setMethod("rebuild_call", "unmarkedFitOccuMulti", function(object){ 
   cl <- methods::callNextMethod(object)
-  cl[["stateformulas"]] <- quote(object@stateformulas)
-  cl[["detformulas"]] <- quote(object@detformulas)
+  cl[["stateformulas"]] <- quote(object@formlist$state)
+  cl[["detformulas"]] <- quote(object@formlist$det)
   cl
 })
 

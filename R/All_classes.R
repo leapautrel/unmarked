@@ -343,10 +343,7 @@ setClass("unmarkedFitOccuPEN_CV",
 )
 
 # Rota multispecies occupancy model
-setClass("unmarkedFitOccuMulti",
-  representation(detformulas = "character", stateformulas = "character"),
-  contains = "unmarkedFit"
-)
+setClass("unmarkedFitOccuMulti", contains = "unmarkedFit")
 
 # Royle-Nichols occupancy model
 setClass("unmarkedFitOccuRN",
@@ -399,8 +396,7 @@ setClass("unmarkedFitColExt",
 
 # Multi-state occupancy model
 setClass("unmarkedFitOccuMS",
-  representation(detformulas = "character", psiformulas = "character",
-                 phiformulas = "character", parameterization = "character"),
+  representation(parameterization = "character"),
   contains = "unmarkedFit"
 )
 
