@@ -22,8 +22,8 @@ setMethod("predict_internal", "unmarkedFit",
   check_predict_arguments(object, type, newdata)
 
   # Get model matrix (X) and offset
-  # If newdata is an unmarkedFrame, use getDesign via predict_inputs_from_umf()
   is_raster <- FALSE
+  # If newdata is an unmarkedFrame, use getDesign via predict_inputs_from_umf()
   if(inherits(newdata, "unmarkedFrame")){
     # Generate model matrix and offsets
     pred_inps <- predict_inputs_from_umf(object, type, newdata, na.rm, re.form)
@@ -110,18 +110,8 @@ check_nested_formula_functions <- function(formula){
   invisible()
 }
 
-# Fit-type specific methods----------------------------------------------------
-
-# Fit type-specific methods to generate different components of prediction
-# 1. predict_inputs_from_umf(): Generating inputs from an unmarked
-#    frame (e.g. when no newdata) using getDesign
-# 2. get_formula: Get formula for submodel type
-# 3. get_orig_data(): Get original dataset for use in building model frame
-# 4. predict_by_chunk(): Take inputs and generate predictions
-# Basic methods are shown below; fit type-specific methods in their own sections
-
-setMethod("predict_inputs_from_umf", "unmarkedFit",
-  function(object, type, newdata, na.rm, re.form){
+# Generating inputs from an unmarked frame (e.g. when no newdata) using getDesign
+predict_inputs_from_umf <- function(object, type, newdata, na.rm, re.form){
 
   dm <- getDesign(newdata, object@formlist, na.rm = na.rm)
   select_names <- paste0(c("X_", "Z_", "offset_"), type)
@@ -140,8 +130,15 @@ setMethod("predict_inputs_from_umf", "unmarkedFit",
   }
 
   list(X = select$X, offset = select$offset)
-})
+}
 
+
+# Fit-type specific methods----------------------------------------------------
+
+# Fit type-specific methods to generate different components of prediction
+# 1. get_formula: Get formula for submodel type
+# 2. get_orig_data(): Get original dataset for use in building model frame
+# 3. predict_by_chunk(): Take inputs and generate predictions
 
 # Get correct individual formula based on type
 setMethod("get_formula", "unmarkedFit", function(object, type, ...){

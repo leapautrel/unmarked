@@ -280,11 +280,6 @@ setGeneric("predict_by_chunk", function(object, ...){
 # Methods for specific unmarkedFit types in predict.R
 setGeneric("predict_internal", function(object, ...) standardGeneric("predict_internal"))
 
-# Methods in predict.R
-setGeneric("predict_inputs_from_umf", function(object, ...){
-  standardGeneric("predict_inputs_from_umf")
-})
-
 # Internal method for ranef
 # Methods for specific unmarkedFit types in ranef.R
 setGeneric("ranef_internal", function(object, ...) standardGeneric("ranef_internal"))
