@@ -519,44 +519,6 @@ setMethod("get_formula", "unmarkedFit", function(object, type, ...){
 })
 
 # Extract the covariates used for a particular submodel
-# Used by predict and plotEffects
-# Note that for dynamic models the last year of covariates in the
-# yearlySiteCovs are dropped, but they are kept in temporary emigration models
 setMethod("get_covariates", "unmarkedFit", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-
-  if(type %in% c("state", "psi", "lambda")){
-    datatype <- "site_covs"
-  } else if(type %in% c("col", "ext", "gamma", "omega", "iota")){
-    datatype <- "yearly_site_covs"
-  } else if(type %in% c("det", "fp", "b")){
-    datatype <- "obs_covs"
-  } else {
-    stop("Can't identify covariates for this type", call.=FALSE)
-  }
-  clean_covs[[datatype]]
-})
-
-setMethod("get_covariates", "unmarkedFitOccuCOP", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, psi = 'site_covs', lambda = 'obs_covs')
-  clean_covs[[datatype]]
-})
-
-# DSO models need to use yearly site covs for detection
-setMethod("get_covariates", "unmarkedFitDSO", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=TRUE)
-  datatype <- switch(type, lambda='site_covs', gamma='yearly_site_covs',
-                     omega='yearly_site_covs', iota='yearly_site_covs',
-                     det='yearly_site_covs')
-  clean_covs[[datatype]]
-})
-
-# Temporary emigration models do not drop final year
-setMethod("get_covariates", "unmarkedFitG3", function(object, type, ...){
-  clean_covs <- clean_up_covs(object@data, drop_final=FALSE)
-  datatype <- switch(type, lambda='site_covs', psi='site_covs', 
-                     phi='yearly_site_covs', dist='yearly_site_covs',
-                     det='obs_covs', rem='obs_covs')
-  clean_covs[[datatype]]
+  get_covariates(getData(object), type, ...)
 })

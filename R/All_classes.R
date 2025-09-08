@@ -194,7 +194,7 @@ setClass("unmarkedFrameGDR",
     unitsIn = "character",
     period.lengths = "numeric"
   ),
-  contains="unmarkedMultFrame"
+  contains="unmarkedFrameG3"
 )
 
 
