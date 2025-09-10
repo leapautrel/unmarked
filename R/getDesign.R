@@ -1031,7 +1031,7 @@ get_model_matrix <- function(formula, covs){
   miss_vars <- all.vars(formula)[!all.vars(formula) %in% names(covs)]
   if(length(miss_vars) > 0){
     stop(paste("Variable(s)", paste(miss_vars, collapse=", "), 
-                "not found in siteCovs"), call.=FALSE)
+                "not found in covariates"), call.=FALSE)
   }
 
   formula <- reformulas::nobars(formula)
