@@ -74,11 +74,11 @@ double nll_gpcount(arma::mat ym, arma::mat X_lambda, arma::mat X_phi, arma::mat 
 	    continue;
 	  }
 	  g = 0.0;
-	  if(arma::is_finite(phi(i,t)))
+	  if(std::isfinite(phi(i,t)))
 	    g = Rf_dbinom(n, m, phi(i,t), true);
 	  h = 0.0;
 	  for(int j=0; j<J; j++) {
-	    if(arma::is_finite(y(i,j,t))) { // true if not NA, NaN, +/-Inf
+	    if(std::isfinite(y(i,j,t))) { // true if not NA, NaN, +/-Inf
 	      h += Rf_dbinom(y(i,j,t), n, p(i,j,t), true);
 	    }
 	  }

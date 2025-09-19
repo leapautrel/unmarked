@@ -23,7 +23,7 @@ double nll_occuCOP(arma::icolvec y, arma::icolvec L,
   int k=0; // counter
   // for each site i in 1:M
   for(int i=0; i<M; i++) {
-    if(!arma::is_finite(psi(i))){
+    if(!std::isfinite(psi(i))){
       k += J;
       continue;
     }
