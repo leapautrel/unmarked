@@ -76,7 +76,8 @@ setMethod("ranef_internal", "unmarkedFitDailMadsen", function(object, ...){
     }
 
     #TODO: adjust if output = "density"
-    lam <- predict(object, type="lambda",level=NULL, na.rm=FALSE)$Predicted # Slow, use D$Xlam instead
+    # Can't use predict because it will be incorrect with ZIP
+    lam <- exp(D$X_lambda %*% coef(object, "lambda") + D$offset_lambda)
 
     R <- length(lam)
     T <- object@data@numPrimary
@@ -754,7 +755,9 @@ setMethod("ranef_internal", "unmarkedFitOccuTTD", function(object, ...){
 
 
 setMethod("ranef_internal", "unmarkedFitPCount", function(object, ...){
-    lam <- predict(object, type="state", level=NULL, na.rm=FALSE)$Predicted
+    # Can't use predict because it will be incorrect with ZIP
+    dm <- getDesign(object@data, object@formlist, na.rm = FALSE)
+    lam <- exp(dm$X_state %*% coef(object, "state") + dm$offset_state)
     R <- length(lam)
     p <- getP(object)
     K <- object@K

@@ -279,3 +279,34 @@ test_that("pcount R, C++ and TMB engines give same results",{
   expect_equal(coef(fmC), coef(fmR))
   expect_equal(coef(fmC), coef(fmT), tol=1e-7)
 })
+
+test_that("parboot with ZIP distribution works", {
+  #https://github.com/ecoverseR/unmarked/issues/49
+  set.seed(123)
+  nSites <- 100
+  nVisits <- 4
+  psi <- 0.5   # Proportion of extra-Poisson zeros
+  z <- rbinom(n=nSites, size=1, prob=psi) # Extra zeros
+  lam <- 5     # expected count when z=1
+  N <- rpois(n=nSites, lambda=lam*z)      # abundance at each site
+  p <- 0.3     # detection prob
+  y <- matrix(NA, nSites, nVisits)
+  for(i in 1:nSites) {
+    y[i,] <- rbinom(n=nVisits, size=N[i], prob=p) # count data
+  }
+
+  umf <- unmarkedFramePCount(y=y)
+  fmzip <- pcount(~1~1, umf, mixture="ZIP", K=25)
+
+  # Check simulate/parboot
+  pbzip <- parboot(fmzip)
+  expect_equal(pbzip@t.star[1,1], 668.8506, tol=1e-4)
+  expect_true(pbzip@t0 > min(pbzip@t.star) & pbzip@t0 < max(pbzip@t.star)) 
+  
+  # Check ranef
+  r <- ranef(fmzip)
+  b <- bup(r)
+  # plot(b, N)
+  # abline(a=0, b=1)
+  expect_equal(mean(b), 2.199303, tol=1e-5) 
+})

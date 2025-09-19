@@ -852,7 +852,9 @@ setMethod("simulate_internal", "unmarkedFitOccuTTD",
 
 setMethod("simulate_internal", "unmarkedFitPCount",
   function(object, nsim){
-  lam <- predict(object, type = "state", level = NULL, na.rm=FALSE)$Predicted
+  # Can't use predict because it will be incorrect with ZIP
+  dm <- getDesign(object@data, object@formlist, na.rm = FALSE)
+  lam <- exp(dm$X_state %*% coef(object, "state") + dm$offset_state)
   p <- getP(object, na.rm=FALSE)
   M <- nrow(p)
   J <- ncol(p)
@@ -881,13 +883,15 @@ simOpenN <- function(object){
     #To partially handle old saved model objects
     fix <- tryCatch(object@fix, error=function(e) "none")
     immigration <- tryCatch(object@immigration, error=function(e) FALSE)
-    delta <- getDesign(umf, object@formlist, na.rm = FALSE)$delta  
+    dm <- getDesign(umf, object@formlist, na.rm = FALSE)
+    delta <- dm$delta
     y <- umf@y
     M <- nrow(y)
     T <- umf@numPrimary
     J <- ncol(y) / T
 
-    lambda <- predict(object, type = "lambda", level = NULL, na.rm = FALSE)$Predicted
+    # Can't use predict because it will be incorrect with ZIP
+    lambda <- exp(dm$X_lambda %*% coef(object, "lambda") + dm$offset_lambda)
 
     if(fix == "gamma"){
         gamma <- matrix(0, M, T-1)
