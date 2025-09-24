@@ -51,6 +51,6 @@ LinkingTo:
     RcppEigen
 SystemRequirements: GNU make
 URL: https://groups.google.com/d/forum/unmarked,
-     https://biodiverse.github.io/unmarked/
-BugReports: https://github.com/biodiverse/unmarked/issues
+     https://ecoverseR.github.io/unmarked/
+BugReports: https://github.com/ecoverseR/unmarked/issues
 VignetteBuilder: knitr

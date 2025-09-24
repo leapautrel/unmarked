@@ -184,7 +184,7 @@ test_that("colext methods work",{
 })
 
 test_that("Missing primary periods are handled correctly", {
-  #https://github.com/biodiverse/unmarked/pull/40
+  #https://github.com/ecoverseR/unmarked/pull/40
   y <- readRDS("data/colext_missing_periods.Rds")
   umf <- unmarkedMultFrame(y = y, numPrimary = 9)
   fit <- colext(data = umf)
