@@ -515,7 +515,19 @@ setMethod("getY_internal", "unmarkedFitOccuMulti", function(object) {
 
 # Extract formula(s) for a particular submodel
 setMethod("get_formula", "unmarkedFit", function(object, type, ...){
-  object@formlist[[type]]
+  if(methods::.hasSlot(object, "formlist")){
+    formlist <- object@formlist
+  } else {
+    # For partial backwards compatibility
+    if(methods::.hasSlot(object, "formula") & type %in% c("state", "det")){
+      formlist <- split_formula(object@formula)
+      names(formlist) <- c("det", "state")
+    } else {
+      stop("Fitted model is incompatible with this version of unmarked. Try re-fitting the model.")  
+    }
+  }
+
+  formlist[[type]]
 })
 
 # Extract the covariates used for a particular submodel
