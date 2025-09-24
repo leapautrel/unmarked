@@ -47,7 +47,7 @@ test_that("formatDistData function works",{
 test_that("formatLong works correctly",{
   df <- read.csv(system.file("csv","frog2001pcru.csv", package = "unmarked"),
                  stringsAsFactors=TRUE)
-  umf <- expect_warning(formatLong(df, type = "unmarkedFrameOccu"))
+  umf <- formatLong(df, type = "unmarkedFrameOccu")
   ## Add some assertions...
 
   # Try simple with dates
@@ -58,7 +58,7 @@ test_that("formatLong works correctly",{
     # ocov = round(rnorm(nrow(test)), 2)
     y = rbinom(nrow(test), 1, 0.6)
   })
-  withdate <- expect_warning(formatLong(test, type = "unmarkedFrameOccu"))
+  withdate <- formatLong(test, type = "unmarkedFrameOccu")
 
   expect_equal(withdate,
               new("unmarkedFrameOccu", y = structure(c(1L, 0L, 1L, 1L), .Dim = c(2L, 2L)),
@@ -81,7 +81,7 @@ test_that("formatLong works correctly",{
     y = rbinom(nrow(test), 1, 0.6)
   })
 
-  withfac <- expect_warning(formatLong(test, type = "unmarkedFrameOccu"))
+  withfac <- formatLong(test, type = "unmarkedFrameOccu")
 
   expect_equal(withfac,
               new("unmarkedFrameOccu",
@@ -194,8 +194,8 @@ test_that("formatLong works correctly",{
                      y = as.vector(t(y)),
                      x1 = rep(1:4, each = J),
                      x2 = factor(rep(c('A','B', 'A', 'B'), each = J)))
-  umf1 <- expect_warning(formatLong(dsdf, type = "unmarkedFrameDS", dist.breaks = db,
-                     survey = "point", unitsIn = "m"))
+  umf1 <- formatLong(dsdf, type = "unmarkedFrameDS", dist.breaks = db,
+                     survey = "point", unitsIn = "m")
   expect_equal(umf, umf1)
 
 })

@@ -68,9 +68,6 @@ rowProds <- function(x, na.rm = FALSE)
 csvToUMF <-
 function(filename, long=FALSE, type, species = NULL, ...)
 {
-  .Deprecated("csvToUMF", package=NULL, 
-              msg = paste("csvToUMF will be deprecated in the next version."),
-             old = as.character(sys.call(sys.parent()))[1L])
 
   dfin <- read.csv(filename, stringsAsFactors=TRUE)
 
@@ -116,9 +113,6 @@ dateToObs <- function(dfin)
 # response, one column
 # obs vars, one per column
 formatLong <- function(dfin, species = NULL, type, ...) {
-  .Deprecated("formatLong", package=NULL, 
-              msg = paste("formatLong will be deprecated in the next version."),
-             old = as.character(sys.call(sys.parent()))[1L])
   if (type %in% c("umarkedFrameMPois", "unmarkedFrameGMM"))
     stop("Multinomial data sets are not supported.")
   if(missing(type)) stop("type must be supplied")
