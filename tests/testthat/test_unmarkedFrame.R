@@ -1,12 +1,12 @@
 context("unmarkedFrames")
 
-test_that("unmarkedFrame can be constructed",{
+test_that("unmarkedFrameDiscrete can be constructed",{
   M <- 10
   J <- 3
   y <- matrix(rbinom(J * M, 1, 0.5), M, J)
   siteCovs <- data.frame(a = rnorm(M), b = factor(gl(2,5)))
   umf <- unmarkedFrameOccu(y = y, siteCovs = siteCovs)
-  expect_is(umf, "unmarkedFrame")
+  expect_is(umf, "unmarkedFrameDiscrete")
 
   out <- capture.output(umf)
   expect_equal(out[1], "Data frame representation of unmarkedFrame object.")
@@ -68,23 +68,23 @@ test_that("Characters are converted to factors when umf is constructed",{
   #Site covs
   sc <- data.frame(x=rnorm(n), y=sample(letters, 50, replace=TRUE))
   expect_equal(sapply(sc, class), c(x="numeric", y="character"))
-  expect_warning(umf <- unmarkedFrame(y, siteCovs=sc))
+  expect_warning(umf <- unmarkedFrameDiscrete(y, siteCovs=sc))
 
-  umf <- expect_warning(unmarkedFrame(y, siteCovs=sc))
+  umf <- expect_warning(unmarkedFrameDiscrete(y, siteCovs=sc))
   expect_equal(sapply(siteCovs(umf), class), c(x="numeric", y="factor"))
 
   #Already factor
   sc2 <- data.frame(x=rnorm(n), y=factor(sample(letters, 50, replace=TRUE)))
-  umf <- unmarkedFrame(y, siteCovs=sc2)
+  umf <- unmarkedFrameDiscrete(y, siteCovs=sc2)
   expect_equal(sapply(siteCovs(umf), class), c(x="numeric", y="factor"))
 
   #Obs covs
   oc <- data.frame(x=rnorm(n*J*T), y=sample(letters, n*J*T, replace=TRUE))
   expect_equal(sapply(oc, class), c(x="numeric", y="character"))
 
-  expect_warning(umf <- unmarkedFrame(y, obsCovs=oc))
+  expect_warning(umf <- unmarkedFrameDiscrete(y, obsCovs=oc))
 
-  umf <- expect_warning(unmarkedFrame(y, obsCovs=oc))
+  umf <- expect_warning(unmarkedFrameDiscrete(y, obsCovs=oc))
   expect_equal(sapply(obsCovs(umf), class), c(x="numeric", y="factor"))
   expect_true(is.null(siteCovs(umf)))
 

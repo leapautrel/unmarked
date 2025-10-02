@@ -11,8 +11,12 @@ setClassUnion("matrixOrVector", c("matrix","numeric"))
 
 # unmarkedFrame classes--------------------------------------------------------
 
-# Basic unmarkedFrame
-validunmarkedFrame <- function(object) {
+setClass("unmarkedFrame",
+  slots = c(y = "ANY", obsCovs = "ANY", siteCovs = "ANY")
+)
+
+# Basic unmarkedFrameDiscrete
+validunmarkedFrameDiscrete <- function(object) {
     errors <- character(0)
     M <- nrow(object@y)
     J <- ncol(object@y)
@@ -29,19 +33,23 @@ validunmarkedFrame <- function(object) {
         errors
 }
 
-setClass("unmarkedFrame",
-    representation(y = "matrix",
-        obsCovs = "optionalDataFrame",
-        siteCovs = "optionalDataFrame",
-        obsToY = "optionalMatrix"),
-    validity = validunmarkedFrame)
+setClass("unmarkedFrameDiscrete",
+  representation(
+    y = "matrix",
+    obsCovs = "optionalDataFrame",
+    siteCovs = "optionalDataFrame",
+    obsToY = "optionalMatrix"
+  ),
+  contains = "unmarkedFrame",
+  validity = validunmarkedFrameDiscrete
+)
 
 ### Single-season models ###
 
 # Count-based occupancy
 setClass("unmarkedFrameOccuCOP",
   representation(L = "matrix"),
-  contains = "unmarkedFrame",
+  contains = "unmarkedFrameDiscrete",
   validity = function(object) {
     errors <- character(0)
     M <- nrow(object@y)
@@ -71,7 +79,7 @@ setClass("unmarkedFrameDS",
         tlength = "numeric",
         survey = "character",
         unitsIn = "character"),
-    contains = "unmarkedFrame",
+    contains = "unmarkedFrameDiscrete",
     validity = function(object) {
         errors <- character(0)
         J <- numY(object)
@@ -89,28 +97,28 @@ setClass("unmarkedFrameDS",
 # Multinomial mixture model
 setClass("unmarkedFrameMPois",
 	representation(samplingMethod = "character", piFun = "character"),
-	contains = "unmarkedFrame"
+	contains = "unmarkedFrameDiscrete"
 )
 
 # Single-season occupancy model
-setClass("unmarkedFrameOccu", contains = "unmarkedFrame")
+setClass("unmarkedFrameOccu", contains = "unmarkedFrameDiscrete")
 
 # Community occupancy model
 setClass("unmarkedFrameOccuComm",
   representation(ylist = "list", speciesCovs="optionalList"),
-  contains = "unmarkedFrame"
+  contains = "unmarkedFrameDiscrete"
 )
 
 # False-positive occupancy model
 setClass("unmarkedFrameOccuFP",
   representation(type = "numeric"),
-  contains = "unmarkedFrame"
+  contains = "unmarkedFrameDiscrete"
 )
 
 # Rota multiple species occupancy model
 setClass("unmarkedFrameOccuMulti",
   representation(ylist = "list", fDesign = "matrix"),
-  contains = "unmarkedFrame",
+  contains = "unmarkedFrameDiscrete",
   validity = function(object) {
       errors <- character(0)
       M <- nrow(object@y)
@@ -136,7 +144,7 @@ setClass("unmarkedFrameOccuMulti",
 )
 
 # N-mixture model
-setClass("unmarkedFramePCount", contains = "unmarkedFrame")
+setClass("unmarkedFramePCount", contains = "unmarkedFrameDiscrete")
 
 
 ### Multi-season models ###
@@ -144,7 +152,7 @@ setClass("unmarkedFramePCount", contains = "unmarkedFrame")
 # Basic multi-season class used by dynamic occupancy model
 setClass("unmarkedMultFrame",
   representation(numPrimary = "numeric", yearlySiteCovs = "optionalDataFrame"),
-  contains="unmarkedFrame"
+  contains="unmarkedFrameDiscrete"
 )
 
 # Multi-state occupancy
@@ -276,7 +284,7 @@ setClass("unmarkedFit",
   representation(fitType = "character",
     call = "call",
     formlist = "list",
-    data = "unmarkedFrame",
+    data = "unmarkedFrameDiscrete",
     sitesRemoved = "numeric",  # vector of indices of removed sites
     estimates = "unmarkedEstimateList",
     AIC = "numeric",
@@ -425,7 +433,7 @@ setClass("unmarkedFitPCO", contains = "unmarkedFitDailMadsen")
 
 ### Integrated models ###
 
-setClassUnion("unmarkedFrameOrNULL", members=c("unmarkedFrame", "NULL"))
+setClassUnion("unmarkedFrameOrNULL", members=c("unmarkedFrameDiscrete", "NULL"))
 setClass("unmarkedFitIDS",
     representation(
         keyfun = "character",
@@ -516,7 +524,7 @@ setClass("unmarkedCrossValList",
 
 # Power analysis output
 setClass("unmarkedPower",
-  representation(call="call", data="unmarkedFrame", M="numeric",
+  representation(call="call", data="unmarkedFrameDiscrete", M="numeric",
                  J="numeric", T="numeric", coefs="list", estimates="list",
                  alpha="numeric", nulls="list")
 )

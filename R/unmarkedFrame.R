@@ -24,7 +24,7 @@ covsToDF <- function(covs, name, obsNum, numSites){
 }
 
 # Constructor for unmarkedFrames.
-unmarkedFrame <- function(y, siteCovs = NULL, obsCovs = NULL, obsToY) {
+unmarkedFrameDiscrete <- function(y, siteCovs = NULL, obsCovs = NULL, obsToY) {
     if(!missing(obsToY)){
         obsNum <- nrow(obsToY)
     } else {
@@ -40,7 +40,7 @@ unmarkedFrame <- function(y, siteCovs = NULL, obsCovs = NULL, obsToY) {
         y <- as.matrix(y)
     if(missing(obsToY)) obsToY <- NULL
 
-    umf <- new("unmarkedFrame", y = y, obsCovs = obsCovs, siteCovs = siteCovs,
+    umf <- new("unmarkedFrameDiscrete", y = y, obsCovs = obsCovs, siteCovs = siteCovs,
         obsToY = obsToY)
     umf <- umf_to_factor(umf)
     return(umf)
@@ -72,7 +72,7 @@ unmarkedFrameDS <- function(y, siteCovs = NULL, dist.breaks, tlength,
 unmarkedFrameOccu <- function(y, siteCovs = NULL, obsCovs = NULL)
 {
     J <- ncol(y)
-    umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = diag(J))
+    umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = diag(J))
     umf <- as(umf, "unmarkedFrameOccu")
     umf
 }
@@ -80,7 +80,7 @@ unmarkedFrameOccu <- function(y, siteCovs = NULL, obsCovs = NULL)
 unmarkedFrameOccuFP <- function(y, siteCovs = NULL, obsCovs = NULL, type)
 {
   J <- ncol(y)
-  umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = diag(J))
+  umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = diag(J))
   umf <- as(umf, "unmarkedFrameOccuFP")
   umf@type <- type
   umf
@@ -139,7 +139,7 @@ unmarkedFrameOccuMulti <- function(y, siteCovs = NULL, obsCovs = NULL,
 unmarkedFramePCount <- function(y, siteCovs = NULL, obsCovs = NULL)
 {
     J <- ncol(y)
-    umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = diag(J))
+    umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = diag(J))
     umf <- as(umf, "unmarkedFramePCount")
     umf
 }
@@ -176,7 +176,7 @@ unmarkedFrameMPois <- function(y, siteCovs = NULL, obsCovs = NULL, type,
             stop("obsToY is required for multinomial-Poisson data with no specified type.")
         type <- "userDefined"
         }
-    umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = obsToY)
+    umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = obsToY)
     umf <- as(umf, "unmarkedFrameMPois")
     umf@piFun <- piFun
     umf@samplingMethod <- type
@@ -190,7 +190,7 @@ unmarkedMultFrame <- function(y, siteCovs = NULL, obsCovs = NULL,
                               numPrimary, yearlySiteCovs = NULL)
 {
     J <- ncol(y)
-	  umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = diag(J))
+	  umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = diag(J))
     umf <- as(umf, "unmarkedMultFrame")
     if(ncol(umf@y) %% numPrimary != 0){
       stop("Unequal number of secondary periods in each primary period", call.=FALSE)
@@ -313,7 +313,7 @@ unmarkedFrameGMM <- function(y, siteCovs = NULL, obsCovs = NULL, numPrimary,
 
       }
 
-    umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = obsToY)
+    umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = obsToY)
     umf <- as(umf, "unmarkedMultFrame")
     umf@numPrimary <- numPrimary
     umf@yearlySiteCovs <- covsToDF(yearlySiteCovs, "yearlySiteCovs",
@@ -357,7 +357,7 @@ unmarkedFrameDSO <- function(y, siteCovs=NULL, yearlySiteCovs=NULL, numPrimary,
     #obsToY = diag(J*T)
     ### This is from unmarkedFramePCO
 
-    umf <- unmarkedFrame(y = y, siteCovs = siteCovs, obsToY = obsToY)
+    umf <- unmarkedFrameDiscrete(y = y, siteCovs = siteCovs, obsToY = obsToY)
     umf <- as(umf, "unmarkedMultFrame")
     umf@numPrimary <- numPrimary
     if(inherits(yearlySiteCovs, "list")) {
@@ -418,7 +418,7 @@ unmarkedFrameGDS<- function(y, siteCovs, numPrimary,
     if(missing(siteCovs))
         siteCovs <- NULL
 
-    umf <- unmarkedFrame(y = y, siteCovs = siteCovs, obsToY = obsToY)
+    umf <- unmarkedFrameDiscrete(y = y, siteCovs = siteCovs, obsToY = obsToY)
     umf <- as(umf, "unmarkedMultFrame")
     umf@numPrimary <- numPrimary
     if(missing(yearlySiteCovs))
@@ -496,7 +496,7 @@ unmarkedFrameGPC <- function(y, siteCovs=NULL, obsCovs=NULL, numPrimary,
     if(missing(siteCovs))
         siteCovs <- NULL
 
-    umf <- unmarkedFrame(y = y, siteCovs = siteCovs, obsCovs = obsCovs,
+    umf <- unmarkedFrameDiscrete(y = y, siteCovs = siteCovs, obsCovs = obsCovs,
                          obsToY = obsToY)
     umf <- as(umf, "unmarkedMultFrame")
     umf@numPrimary <- numPrimary
@@ -545,7 +545,7 @@ unmarkedFramePCO <- function(y, siteCovs = NULL, obsCovs = NULL,
         stop("primaryPeriod values must increase over time for each site")
 
     obsCovs <- covsToDF(obsCovs, "obsCovs", J*T, M)
-    umf <- unmarkedFrame(y, siteCovs, obsCovs, obsToY = diag(J*T))
+    umf <- unmarkedFrameDiscrete(y, siteCovs, obsCovs, obsToY = diag(J*T))
     umf <- as(umf, "unmarkedMultFrame")
     umf@numPrimary <- numPrimary
     umf@yearlySiteCovs <- covsToDF(yearlySiteCovs, "yearlySiteCovs",
@@ -607,7 +607,7 @@ unmarkedFrameMMO <- function(y, siteCovs = NULL, obsCovs = NULL,
 ################ SHOW METHODS ############################################
 
 
-setMethod("show", "unmarkedFrame", function(object)
+setMethod("show", "unmarkedFrameDiscrete", function(object)
 {
     df <- as(object, "data.frame")
     cat("Data frame representation of unmarkedFrame object.\n")
@@ -648,7 +648,7 @@ setMethod("show", "unmarkedFrameOccuTTD", function(object)
 ############################ EXTRACTORS ##################################
 
 # Extractor for site level covariates
-setMethod("siteCovs", "unmarkedFrame", function(object) {
+setMethod("siteCovs", "unmarkedFrameDiscrete", function(object) {
     return(object@siteCovs)
 })
 
@@ -656,7 +656,7 @@ setMethod("yearlySiteCovs", "unmarkedMultFrame", function(object) {
     return(object@yearlySiteCovs)
 })
 
-setMethod("obsCovs", "unmarkedFrame", function(object, matrices = FALSE) {
+setMethod("obsCovs", "unmarkedFrameDiscrete", function(object, matrices = FALSE) {
     M <- numSites(object)
     R <- obsNum(object)
     if(matrices) {
@@ -672,19 +672,19 @@ setMethod("obsCovs", "unmarkedFrame", function(object, matrices = FALSE) {
 })
 
 
-setMethod("obsNum", "unmarkedFrame", function(object) nrow(object@obsToY))
+setMethod("obsNum", "unmarkedFrameDiscrete", function(object) nrow(object@obsToY))
 
 
-setMethod("numSites", "unmarkedFrame", function(object) nrow(object@y))
+setMethod("numSites", "unmarkedFrameDiscrete", function(object) nrow(object@y))
 
 
-setMethod("numY", "unmarkedFrame", function(object) ncol(object@y))
+setMethod("numY", "unmarkedFrameDiscrete", function(object) ncol(object@y))
 
 
-setMethod("obsToY", "unmarkedFrame", function(object) object@obsToY)
+setMethod("obsToY", "unmarkedFrameDiscrete", function(object) object@obsToY)
 
 
-setReplaceMethod("obsCovs", "unmarkedFrame", function(object, value) {
+setReplaceMethod("obsCovs", "unmarkedFrameDiscrete", function(object, value) {
     if(inherits(object, "unmarkedFrameDS"))
         stop("unmarkedFrameDS objects cannot have obsCovs")
     object@obsCovs <- as.data.frame(value)
@@ -692,7 +692,7 @@ setReplaceMethod("obsCovs", "unmarkedFrame", function(object, value) {
 })
 
 
-setReplaceMethod("siteCovs", "unmarkedFrame", function(object, value) {
+setReplaceMethod("siteCovs", "unmarkedFrameDiscrete", function(object, value) {
     object@siteCovs <- as.data.frame(value)
     object
 })
@@ -704,13 +704,13 @@ setReplaceMethod("yearlySiteCovs", "unmarkedMultFrame",
         object
     })
 
-setReplaceMethod("obsToY", "unmarkedFrame", function(object, value) {
+setReplaceMethod("obsToY", "unmarkedFrameDiscrete", function(object, value) {
     object@obsToY <- value
     object
 })
 
 
-setMethod("getY", "unmarkedFrame", function(object) object@y)
+setMethod("getY", "unmarkedFrameDiscrete", function(object) object@y)
 setMethod("getY", "unmarkedFrameOccuMulti", function(object) object@ylist[[1]])
 
 
@@ -718,7 +718,7 @@ setMethod("getY", "unmarkedFrameOccuMulti", function(object) object@ylist[[1]])
 # Used by predict and plotEffects
 # Note that for dynamic models the last year of covariates in the
 # yearlySiteCovs are dropped, but they are kept in temporary emigration models
-setMethod("get_covariates", "unmarkedFrame", function(object, type, ...){
+setMethod("get_covariates", "unmarkedFrameDiscrete", function(object, type, ...){
   clean_covs <- clean_up_covs(object, drop_final=TRUE)
 
   if(type %in% c("state", "psi", "lambda")){
@@ -760,7 +760,7 @@ setMethod("get_covariates", "unmarkedFrameG3", function(object, type, ...){
 ################################### SUMMARY METHODS ######################
 
 
-setMethod("summary", "unmarkedFrame", function(object,...) {
+setMethod("summary", "unmarkedFrameDiscrete", function(object,...) {
     cat("unmarkedFrame Object\n\n")
     cat(nrow(object@y), "sites\n")
     cat("Maximum number of observations per site:",obsNum(object),"\n")
@@ -903,7 +903,7 @@ setMethod("summary", "unmarkedFrameOccuTTD", function(object,...) {
 ################################# PLOT METHODS ###########################
 # TODO:  come up with nice show/summary/plot methods for each data types.
 
-setMethod("plot", c(x="unmarkedFrame", y="missing"),
+setMethod("plot", c(x="unmarkedFrameDiscrete", y="missing"),
 	function (x, y, panels = 1, colorkey, strip=FALSE,
     ylab="Site", xlab="Observation", ...)
 {
@@ -971,7 +971,7 @@ setMethod("hist", "unmarkedFrameDS", function(x, ...)
 
 ############################### COERCION #################################
 
-setAs("data.frame", "unmarkedFrame", function(from)
+setAs("data.frame", "unmarkedFrameDiscrete", function(from)
 {
     umf <- formatWide(from)
     umf
@@ -979,7 +979,7 @@ setAs("data.frame", "unmarkedFrame", function(from)
 
 
 
-setAs("unmarkedFrame", "data.frame", function(from)
+setAs("unmarkedFrameDiscrete", "data.frame", function(from)
 {
     obsCovs <- obsCovs(from)
     siteCovs <- siteCovs(from)
