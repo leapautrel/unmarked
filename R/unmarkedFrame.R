@@ -607,7 +607,7 @@ unmarkedFrameMMO <- function(y, siteCovs = NULL, obsCovs = NULL,
 ################ SHOW METHODS ############################################
 
 
-setMethod("show", "unmarkedFrameDiscrete", function(object)
+setMethod("show", "unmarkedFrame", function(object)
 {
     df <- as(object, "data.frame")
     cat("Data frame representation of unmarkedFrame object.\n")
@@ -648,7 +648,7 @@ setMethod("show", "unmarkedFrameOccuTTD", function(object)
 ############################ EXTRACTORS ##################################
 
 # Extractor for site level covariates
-setMethod("siteCovs", "unmarkedFrameDiscrete", function(object) {
+setMethod("siteCovs", "unmarkedFrame", function(object) {
     return(object@siteCovs)
 })
 
@@ -710,7 +710,7 @@ setReplaceMethod("obsToY", "unmarkedFrameDiscrete", function(object, value) {
 })
 
 
-setMethod("getY", "unmarkedFrameDiscrete", function(object) object@y)
+setMethod("getY", "unmarkedFrame", function(object) object@y)
 setMethod("getY", "unmarkedFrameOccuMulti", function(object) object@ylist[[1]])
 
 
