@@ -1,5 +1,11 @@
 # Continuous-time unmarkedFrame (time-to-each-detection)
 
+source("~/synchros_git/MOBICO_git/unmarked/R/utils.R")
+source("~/synchros_git/MOBICO_git/unmarked/R/All_generics.R")
+source("~/synchros_git/MOBICO_git/unmarked/R/getDesign.R")
+source("~/synchros_git/MOBICO_git/unmarked/R/mixedModelTools.R")
+source('~/synchros_git/MOBICO_git/unmarked/R/unmarkedEstimate.R')
+
 # TEST VALUES ------------------------------------------------------------------
 set.seed(123)
 
@@ -7,8 +13,14 @@ set.seed(123)
 t_deploymentData <- data.frame(
   deployment = c("A1", "A2", "B1", "B2", "C1"),
   site = c("A", "A", "B", "B", "C"),
-  begintime = as.POSIXct("2025-09-19 00:00:00") + runif(n = 5, 0, 24 * 60 * 60),
-  endtime = as.POSIXct("2025-09-26 00:00:00") + runif(n = 5, 0, 24 * 60 * 60),
+  begintime = as.numeric(
+    as.POSIXct("2025-09-19 00:00:00") +
+      runif(n = 5, 0, 24 * 60 * 60)
+  ) / (24 * 60 * 60),
+  endtime = as.numeric(
+    as.POSIXct("2025-09-26 00:00:00") +
+      runif(n = 5, 0, 24 * 60 * 60)
+  ) / (24 * 60 * 60),
   lat = c(43.442, 43.442, 43.453, 43.453, 43.426),
   lon = c(2.076, 2.076, 2.092, 2.092, 2.034),
   camtrap_model = c("Brand1", "Brand2", "Brand1", "Brand2", "Brand1"),
@@ -33,7 +45,7 @@ t_y <- data.frame(
     replace = TRUE,
     prob = c(0, 0, seq(1, length.out = length(t_deploymentData$deployment) - 2))
   ),
-  obstime = as.POSIXct(runif(
+  obstime = (runif(
     n = n,
     max(t_deploymentData$begintime),
     min(t_deploymentData$endtime)
@@ -43,14 +55,13 @@ t_y <- data.frame(
 ## t_obsCovsMeasures ----
 t_obsCovsMeasures <- expand.grid(
   "deployment" = t_deploymentData$deployment,
-  "covtime" = seq(
-    lubridate::floor_date(min(t_deploymentData$begintime), unit = "hour"),
-    lubridate::ceiling_date(max(t_deploymentData$endtime), unit = "hour"),
-    by = 60 * 30
+  "covtime" = seq(min(t_deploymentData$begintime) - 1,
+    max(t_deploymentData$endtime) + 1,
+    by = 1 / 24
   )
 )
 t_obsCovsMeasures$daycov <- c(lubridate::cyclic_encoding(
-  t_obsCovsMeasures$covtime,
+  as.Date.POSIXct(t_obsCovsMeasures$covtime * (24 * 60 * 60)),
   periods = "day", encoder = "cos"
 )) + rnorm(n = length(t_obsCovsMeasures$covtime))
 t_obsCovsMeasures$lincov <- NA
@@ -59,7 +70,7 @@ for (s in unique(t_deploymentData$site)) {
   for (d in unique(t_deploymentData$deployment[t_deploymentData$site == s])) {
     tmpint <- rnorm(1, sd = 5)
     tmpwhich <- which(t_obsCovsMeasures$deployment == d &
-      lubridate::minute(t_obsCovsMeasures$covtime) == 0)
+      lubridate::minute(as.Date.POSIXct(t_obsCovsMeasures$covtime * (24 * 60 * 60))) == 0)
     t_obsCovsMeasures[tmpwhich, "lincov"] <- tmpint + c(scale(seq_along(tmpwhich))) * tmpslope +
       rnorm(n = length(tmpwhich))
   }
@@ -85,8 +96,8 @@ t_obsCovsFunctions <- list(
   "funcov_dep" = t_funlincov,
   "funcov_cste" = approxfun(
     x = as.integer(c(
-      lubridate::floor_date(min(t_deploymentData$begintime), unit = "hour"),
-      lubridate::ceiling_date(max(t_deploymentData$endtime), unit = "hour")
+      lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
+      lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour")
     )),
     y = rnorm(n = 2),
     method = "linear",
@@ -94,35 +105,35 @@ t_obsCovsFunctions <- list(
   )
 )
 
-# ## obsCovs visu ----
-# library(ggplot2)
-# ggplot(t_obsCovsMeasures, aes(x = covtime, y = daycov, colour = deployment)) +
-#   geom_point(alpha = .5) +
-#   geom_line(alpha = .5) +
-#   geom_smooth(method = "loess", formula = "y~x", span = 0.1, alpha = .1)
-# ggplot(t_obsCovsMeasures[!is.na(t_obsCovsMeasures$lincov), ], aes(x = covtime, y = lincov, colour = deployment)) +
-#   geom_point(alpha = .5) +
-#   geom_line(alpha = .5) +
-#   geom_smooth(method = "loess", formula = "y~x", alpha = .1)
-# ggplot() +
-#   lapply(names(t_obsCovsFunctions$funcov_dep), function(deployment) {
-#     geom_line(aes(
-#       x = seq(
-#         lubridate::floor_date(min(t_deploymentData$begintime), unit = "hour"),
-#         lubridate::ceiling_date(max(t_deploymentData$endtime), unit = "hour"),
-#         by = 60 * 30
-#       ),
-#       y = t_obsCovsFunctions$funcov_dep[[deployment]](
-#         as.integer(seq(
-#           lubridate::floor_date(min(t_deploymentData$begintime), unit = "hour"),
-#           lubridate::ceiling_date(max(t_deploymentData$endtime), unit = "hour"),
-#           by = 60 * 30
-#         ))
-#       ),
-#       colour = deployment
-#     ))
-#   }) +
-#   labs(x = "time", y = "t_obsCovsFunctions$funcov_dep(time)")
+## obsCovs visu ----
+library(ggplot2)
+ggplot(t_obsCovsMeasures, aes(x = covtime, y = daycov, colour = deployment)) +
+  geom_point(alpha = .5) +
+  geom_line(alpha = .5) +
+  geom_smooth(method = "loess", formula = "y~x", span = 0.1, alpha = .1)
+ggplot(t_obsCovsMeasures[!is.na(t_obsCovsMeasures$lincov), ], aes(x = covtime, y = lincov, colour = deployment)) +
+  geom_point(alpha = .5) +
+  geom_line(alpha = .5) +
+  geom_smooth(method = "loess", formula = "y~x", alpha = .1)
+ggplot() +
+  lapply(names(t_obsCovsFunctions$funcov_dep), function(deployment) {
+    geom_line(aes(
+      x = seq(
+        lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
+        lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour"),
+        by = 60 * 30
+      ),
+      y = t_obsCovsFunctions$funcov_dep[[deployment]](
+        as.integer(seq(
+          lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
+          lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour"),
+          by = 60 * 30
+        ))
+      ),
+      colour = deployment
+    ))
+  }) +
+  labs(x = "time", y = "t_obsCovsFunctions$funcov_dep(time)")
 
 
 # TEST CLASSE ------------------------------------------------------------------
@@ -151,11 +162,11 @@ validunmarkedFrameContinuous <- function(object) {
       paste(missing_deploy, collapse = ", ")
     ))
   } else {
-    # Type checks for datetime columns
+    # Type checks for numeric columns
     for (col in c("begintime", "endtime")) {
-      if (!inherits(object@deploymentData[[col]], "POSIXct")) {
+      if (!inherits(object@deploymentData[[col]], "numeric")) {
         errors <- c(errors, paste0(
-          "deploymentData$", col, " must be POSIXct"
+          "deploymentData$", col, " must be numeric"
         ))
       }
     }
@@ -179,9 +190,9 @@ validunmarkedFrameContinuous <- function(object) {
       paste(missing_obs, collapse = ", ")
     ))
   } else {
-    if (!inherits(object@y$obstime, "POSIXct")) {
+    if (!inherits(object@y$obstime, "numeric")) {
       errors <- c(errors, paste0(
-        "y$obstime must be POSIXct"
+        "y$obstime must be numeric"
       ))
     }
   }
@@ -251,9 +262,9 @@ validunmarkedFrameContinuous <- function(object) {
         paste(missing_obsCovsCont, collapse = ", ")
       ))
     } else {
-      if (!inherits(object@obsCovs$obsCovsMeasures$covtime, "POSIXct")) {
+      if (!inherits(object@obsCovs$obsCovsMeasures$covtime, "numeric")) {
         errors <- c(errors, paste0(
-          "obsCovs$obsCovsMeasures$covtime must be POSIXct"
+          "obsCovs$obsCovsMeasures$covtime must be numeric"
         ))
       }
     }
@@ -509,7 +520,7 @@ completeObsCovsFunctions <- function(obsCovs, deploymentData) {
           )
         }
         obsCovs$obsCovsFunctions[[covname]] <- approxfun(
-          x = as.integer(subdf$covtime),
+          x = subdf$covtime,
           y = subdf[[covname]],
           method = "linear",
           rule = 2
@@ -532,7 +543,7 @@ completeObsCovsFunctions <- function(obsCovs, deploymentData) {
             covsDuringAllDeploy <- c(covsDuringAllDeploy, dp)
           }
           obsCovs$obsCovsFunctions[[covname]][[dp]] <- approxfun(
-            x = as.integer(subdf$covtime),
+            x = subdf$covtime,
             y = subdf[[covname]],
             method = "linear",
             rule = 2
@@ -626,6 +637,24 @@ setMethod("numDeployments", "unmarkedFrameContinuous", function(object) {
 })
 numDeployments(umfC)
 
+# Maximum number of deployments per site
+setGeneric("maxNumDeployments", function(object, ...) {
+  standardGeneric("maxNumDeployments")
+})
+setMethod("maxNumDeployments", "unmarkedFrameContinuous", function(object) {
+  max(table(object@deploymentData$site))
+})
+maxNumDeployments(umfC)
+
+
+setGeneric("deploymentData", function(object, ...) {
+  standardGeneric("deploymentData")
+})
+setMethod("deploymentData", "unmarkedFrameContinuous", function(object) {
+  object@deploymentData
+})
+deploymentData(umfC)
+
 # Max number of observations per site
 setMethod("obsNum", "unmarkedFrameContinuous", function(object) {
   detec_counts <- merge(
@@ -710,7 +739,27 @@ obsCovsNames(umfC)
 obsCovsNames(umfC, detailled = FALSE)
 
 
-## Replace covariates data ----
+## Replace data ----
+setGeneric("deploymentData<-", function(object, ...) {
+  standardGeneric("deploymentData<-")
+})
+setReplaceMethod("deploymentData", "unmarkedFrameContinuous", function(object, value) {
+  object@deploymentData <- value
+  validres <- validunmarkedFrameContinuous(object)
+  if (isTRUE(validres)) {
+    return(object)
+  } else {
+    stop(paste(validres, collapse = "\n\t"))
+  }
+})
+# deploymentData(umfC) <- NULL
+# deploymentData(umfC) <- t_deploymentData[1, ]
+# deploymentData(umfC) <- t_deploymentData[, 1:3]
+deploymentData(umfC) <- t_deploymentData[]
+
+
+
+
 setReplaceMethod("obsCovs", "unmarkedFrameContinuous", function(object, value) {
   object@obsCovs <- completeObsCovsFunctions(
     obsCovs = nameObsCovsC(value),
@@ -835,15 +884,12 @@ setMethod(
     axis(2, at = seq_along(sites), labels = sites, las = 1)
 
     ## Time axis
-    axis.POSIXct(1,
-      at = as.POSIXct(seq(
-        from = as.Date(min(deploy$begintime)),
-        to = as.Date(max(deploy$endtime)),
-        by = round(as.numeric(
-          difftime(max(deploy$endtime), min(deploy$begintime), units = "days")
-        ) / ntime.ticks)
-      )),
-      format = time.format
+    axis(1,
+      at = seq(
+        from = min(deploy$begintime),
+        to = max(deploy$endtime),
+        by = round((max(deploy$endtime) - min(deploy$begintime)) / ntime.ticks)
+      )
     )
 
 
@@ -881,7 +927,7 @@ setMethod(
   }
 )
 plot(umfC)
-plot(umfC, col.detection = "blue", show.legend = F)
+plot(umfC, col.detection = "blue", show.legend = F, ntime.ticks = 2)
 
 
 show(umfC)
@@ -894,7 +940,9 @@ setMethod("summary", "unmarkedFrameContinuous", function(object, ...) {
   cat("unmarkedFrameContinuous Object\n\n")
   cat(numSites(object), "sites\n")
   cat(
-    numDeployments(object), "deployments:",
+    numDeployments(object), "deployments with",
+    maxNumDeployments(object), "maximum per site.",
+    "Total:",
     format(
       sum(object@deploymentData$endtime - object@deploymentData$begintime)
     ), "\n"
@@ -928,7 +976,7 @@ setMethod("summary", "unmarkedFrameContinuous", function(object, ...) {
     sum(detec_counts_site > 0), "\n"
   )
 
-  cat("y observations per deployment:")
+  cat("\nObservations (y) per deployment:\n")
   print(detec_counts, exclude = NULL)
 
 
@@ -953,7 +1001,7 @@ setMethod("summary", "unmarkedFrameContinuous", function(object, ...) {
   }
 
   if (!is.null(object@obsCovs)) {
-    cat("\nObservation-level covariates (estimate from interpolated functions):\n")
+    cat("\nObservation-level covariates (estimated from interpolated functions):\n")
     t0 <- as.integer(min(umfC@deploymentData$begintime))
     t1 <- as.integer(max(umfC@deploymentData$endtime))
     covsForSummary <- lapply(names(umfC@obsCovs$obsCovsFunctions), function(covname) {
