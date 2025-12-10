@@ -1,143 +1,5 @@
 # Continuous-time unmarkedFrame (time-to-each-detection)
 
-source("~/synchros_git/MOBICO_git/unmarked/R/utils.R")
-source("~/synchros_git/MOBICO_git/unmarked/R/All_generics.R")
-source("~/synchros_git/MOBICO_git/unmarked/R/getDesign.R")
-source("~/synchros_git/MOBICO_git/unmarked/R/mixedModelTools.R")
-source('~/synchros_git/MOBICO_git/unmarked/R/unmarkedEstimate.R')
-
-# TEST VALUES ------------------------------------------------------------------
-set.seed(123)
-
-## t_deploymentData ----
-t_deploymentData <- data.frame(
-  deployment = c("A1", "A2", "B1", "B2", "C1"),
-  site = c("A", "A", "B", "B", "C"),
-  begintime = as.numeric(
-    as.POSIXct("2025-09-19 00:00:00") +
-      runif(n = 5, 0, 24 * 60 * 60)
-  ) / (24 * 60 * 60),
-  endtime = as.numeric(
-    as.POSIXct("2025-09-26 00:00:00") +
-      runif(n = 5, 0, 24 * 60 * 60)
-  ) / (24 * 60 * 60),
-  lat = c(43.442, 43.442, 43.453, 43.453, 43.426),
-  lon = c(2.076, 2.076, 2.092, 2.092, 2.034),
-  camtrap_model = c("Brand1", "Brand2", "Brand1", "Brand2", "Brand1"),
-  camtrap_height = c(2.33, 1.44, 1.00, 1.00, 1.28),
-  stringsAsFactors = FALSE
-)
-
-## t_siteCovs ----
-t_siteCovs <- data.frame(
-  site = c("A", "B", "C"),
-  habitat = c("Forest", "Grassland", "City"),
-  elev = rnorm(3),
-  stringsAsFactors = FALSE
-)
-
-## y ----
-n <- rpois(n = 1, lambda = 10)
-t_y <- data.frame(
-  deployment = sample(
-    x = t_deploymentData$deployment,
-    size = n,
-    replace = TRUE,
-    prob = c(0, 0, seq(1, length.out = length(t_deploymentData$deployment) - 2))
-  ),
-  obstime = (runif(
-    n = n,
-    max(t_deploymentData$begintime),
-    min(t_deploymentData$endtime)
-  ))
-)
-
-## t_obsCovsMeasures ----
-t_obsCovsMeasures <- expand.grid(
-  "deployment" = t_deploymentData$deployment,
-  "covtime" = seq(min(t_deploymentData$begintime) - 1,
-    max(t_deploymentData$endtime) + 1,
-    by = 1 / 24
-  )
-)
-t_obsCovsMeasures$daycov <- c(lubridate::cyclic_encoding(
-  as.Date.POSIXct(t_obsCovsMeasures$covtime * (24 * 60 * 60)),
-  periods = "day", encoder = "cos"
-)) + rnorm(n = length(t_obsCovsMeasures$covtime))
-t_obsCovsMeasures$lincov <- NA
-for (s in unique(t_deploymentData$site)) {
-  tmpslope <- rnorm(1)
-  for (d in unique(t_deploymentData$deployment[t_deploymentData$site == s])) {
-    tmpint <- rnorm(1, sd = 5)
-    tmpwhich <- which(t_obsCovsMeasures$deployment == d &
-      lubridate::minute(as.Date.POSIXct(t_obsCovsMeasures$covtime * (24 * 60 * 60))) == 0)
-    t_obsCovsMeasures[tmpwhich, "lincov"] <- tmpint + c(scale(seq_along(tmpwhich))) * tmpslope +
-      rnorm(n = length(tmpwhich))
-  }
-}
-
-## t_obsCovsFunctions ----
-t_funlincov <- setNames(
-  vector(mode = "list", length = nrow(t_deploymentData)),
-  t_deploymentData$deployment
-)
-for (dp in t_deploymentData$deployment) {
-  t_funlincov[[dp]] <- approxfun(
-    x = as.integer(c(
-      t_deploymentData$begintime[t_deploymentData$deployment == dp],
-      t_deploymentData$endtime[t_deploymentData$deployment == dp]
-    )),
-    y = rnorm(n = 2),
-    method = "linear",
-    rule = 2
-  )
-}
-t_obsCovsFunctions <- list(
-  "funcov_dep" = t_funlincov,
-  "funcov_cste" = approxfun(
-    x = as.integer(c(
-      lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
-      lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour")
-    )),
-    y = rnorm(n = 2),
-    method = "linear",
-    rule = 2
-  )
-)
-
-## obsCovs visu ----
-library(ggplot2)
-ggplot(t_obsCovsMeasures, aes(x = covtime, y = daycov, colour = deployment)) +
-  geom_point(alpha = .5) +
-  geom_line(alpha = .5) +
-  geom_smooth(method = "loess", formula = "y~x", span = 0.1, alpha = .1)
-ggplot(t_obsCovsMeasures[!is.na(t_obsCovsMeasures$lincov), ], aes(x = covtime, y = lincov, colour = deployment)) +
-  geom_point(alpha = .5) +
-  geom_line(alpha = .5) +
-  geom_smooth(method = "loess", formula = "y~x", alpha = .1)
-ggplot() +
-  lapply(names(t_obsCovsFunctions$funcov_dep), function(deployment) {
-    geom_line(aes(
-      x = seq(
-        lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
-        lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour"),
-        by = 60 * 30
-      ),
-      y = t_obsCovsFunctions$funcov_dep[[deployment]](
-        as.integer(seq(
-          lubridate::floor_date(min(as.Date.POSIXct(t_deploymentData$begintime * (24 * 60 * 60))), unit = "hour"),
-          lubridate::ceiling_date(max(as.Date.POSIXct(t_deploymentData$endtime * (24 * 60 * 60))), unit = "hour"),
-          by = 60 * 30
-        ))
-      ),
-      colour = deployment
-    ))
-  }) +
-  labs(x = "time", y = "t_obsCovsFunctions$funcov_dep(time)")
-
-
-# TEST CLASSE ------------------------------------------------------------------
-
 setClass("unmarkedFrame",
   slots = c(y = "ANY", obsCovs = "ANY", siteCovs = "ANY")
 )
@@ -446,8 +308,6 @@ setClass(
   validity = validunmarkedFrameContinuous
 )
 
-
-# TEST CREATION FUN ------------------------------------------------------------
 nameObsCovsC <- function(obsCovs) {
   if (!is.null(obsCovs)) {
     # Infer elements by type
@@ -469,9 +329,21 @@ nameObsCovsC <- function(obsCovs) {
   }
   return(obsCovs)
 }
+
 completeObsCovsFunctions <- function(obsCovs, deploymentData) {
   deploys <- deploymentData$deployment
 
+  if (!is.null(obsCovs$obsCovsMeasures)) {
+    if (!is.numeric(obsCovs$obsCovsMeasures$covtime)) {
+      stop("obsCovs$obsCovsMeasures$covtime should be numeric")
+    }
+    if (length(setdiff(obsCovs$obsCovsMeasures$deployment, deploymentData$deployment)) > 0) {
+      stop("obsCovs$obsCovsMeasures$deployment should cover deployments in deploymentData$deployment")
+    }
+    if (length(setdiff(deploymentData$deployment, obsCovs$obsCovsMeasures$deployment)) > 0) {
+      stop("deploymentData$deployment deployments should be covered in obsCovs$obsCovsMeasures$deployment")
+    }
+  }
   namesObsCovsMeasures <- setdiff(
     colnames(obsCovs$obsCovsMeasures), c("deployment", "covtime")
   )
@@ -566,6 +438,12 @@ completeObsCovsFunctions <- function(obsCovs, deploymentData) {
 
 unmarkedFrameContinuous <- function(y, deploymentData, siteCovs = NULL, obsCovs = NULL) {
   # Order data
+  if (any(!(c("deployment", "site", "begintime", "endtime") %in% colnames(deploymentData)))) {
+    stop("deploymentData should have mandatory columns: deployment, site, begintime, endtime")
+  }
+  if (any(!(c("deployment", "obstime") %in% colnames(y)))) {
+    stop("y should have mandatory columns: deployment, obstime")
+  }
   deploymentData <- deploymentData[
     order(deploymentData$site, deploymentData$begintime, deploymentData$endtime),
   ]
@@ -599,34 +477,19 @@ unmarkedFrameContinuous <- function(y, deploymentData, siteCovs = NULL, obsCovs 
   return(umf)
 }
 
-umfC <- unmarkedFrameContinuous(
-  y = t_y,
-  deploymentData = t_deploymentData,
-  siteCovs = t_siteCovs,
-  obsCovs = list(t_obsCovsMeasures, t_obsCovsFunctions)
-)
 
 # ASSOCIATED METHODS ----
-
-# For comparison with umfDiscrete : mallardUMF from unmarkedFrame help
-data(mallard)
-mallardUMF <- unmarkedFramePCount(
-  mallard.y,
-  siteCovs = mallard.site,
-  obsCovs = mallard.obs
-)
-
 
 # Not relevent for continuous-time models:
 # numY ;  obsToY ; obsToY<-
 
 ## Access basic data ----
-getY(umfC)
+# getY(umfC)
 
 setMethod("numSites", "unmarkedFrameContinuous", function(object) {
   nrow(object@siteCovs)
 })
-numSites(umfC)
+# numSites(umfC)
 
 
 setGeneric("numDeployments", function(object, ...) {
@@ -635,7 +498,7 @@ setGeneric("numDeployments", function(object, ...) {
 setMethod("numDeployments", "unmarkedFrameContinuous", function(object) {
   nrow(object@deploymentData)
 })
-numDeployments(umfC)
+# numDeployments(umfC)
 
 # Maximum number of deployments per site
 setGeneric("maxNumDeployments", function(object, ...) {
@@ -644,7 +507,7 @@ setGeneric("maxNumDeployments", function(object, ...) {
 setMethod("maxNumDeployments", "unmarkedFrameContinuous", function(object) {
   max(table(object@deploymentData$site))
 })
-maxNumDeployments(umfC)
+# maxNumDeployments(umfC)
 
 
 setGeneric("deploymentData", function(object, ...) {
@@ -653,13 +516,13 @@ setGeneric("deploymentData", function(object, ...) {
 setMethod("deploymentData", "unmarkedFrameContinuous", function(object) {
   object@deploymentData
 })
-deploymentData(umfC)
+# deploymentData(umfC)
 
 # Max number of observations per site
 setMethod("obsNum", "unmarkedFrameContinuous", function(object) {
   detec_counts <- merge(
     object@deploymentData[, c("site", "deployment")],
-    setNames(as.data.frame(table(umfC@y$deployment)), c("deployment", "nb_obs")),
+    setNames(as.data.frame(table(object@y$deployment)), c("deployment", "nb_obs")),
     by = "deployment", all.x = TRUE
   )
   max(tapply(
@@ -669,16 +532,16 @@ setMethod("obsNum", "unmarkedFrameContinuous", function(object) {
     na.rm = TRUE
   ))
 })
-obsNum(umfC)
+# obsNum(umfC)
 
 
-siteCovs(umfC)
+# siteCovs(umfC)
 
 
 setMethod("obsCovs", "unmarkedFrameContinuous", function(object) {
   object@obsCovs
 })
-obsCovs(umfC)
+# obsCovs(umfC)
 
 
 ## Access potential covariates ----
@@ -706,8 +569,8 @@ setMethod("stateCovsNames", "unmarkedFrameContinuous", function(object, detaille
     return(unname(unlist(stateCovsNames)))
   }
 })
-stateCovsNames(umfC)
-stateCovsNames(umfC, detailled = FALSE)
+# stateCovsNames(umfC)
+# stateCovsNames(umfC, detailled = FALSE)
 
 # Extract potential state covs names from an unmarkedFrameContinuous
 # Method in unmarkedFrame.R
@@ -735,8 +598,8 @@ setMethod("obsCovsNames", "unmarkedFrameContinuous", function(object, detailled 
     return(unname(unlist(obsCovsNames)))
   }
 })
-obsCovsNames(umfC)
-obsCovsNames(umfC, detailled = FALSE)
+# obsCovsNames(umfC)
+# obsCovsNames(umfC, detailled = FALSE)
 
 
 ## Replace data ----
@@ -755,7 +618,7 @@ setReplaceMethod("deploymentData", "unmarkedFrameContinuous", function(object, v
 # deploymentData(umfC) <- NULL
 # deploymentData(umfC) <- t_deploymentData[1, ]
 # deploymentData(umfC) <- t_deploymentData[, 1:3]
-deploymentData(umfC) <- t_deploymentData[]
+# deploymentData(umfC) <- t_deploymentData[]
 
 
 
@@ -772,9 +635,9 @@ setReplaceMethod("obsCovs", "unmarkedFrameContinuous", function(object, value) {
     stop(paste(validres, collapse = "\n\t"))
   }
 })
-obsCovs(umfC) <- NULL
+# obsCovs(umfC) <- NULL
 # obsCovs(umfC) <- data.frame("a" = rnorm(4)) # normal error
-obsCovs(umfC) <- list(t_obsCovsMeasures, t_obsCovsFunctions)
+# obsCovs(umfC) <- list(t_obsCovsMeasures, t_obsCovsFunctions)
 
 
 setReplaceMethod("siteCovs", "unmarkedFrameContinuous", function(object, value) {
@@ -791,10 +654,10 @@ setReplaceMethod("siteCovs", "unmarkedFrameContinuous", function(object, value) 
     stop(paste(validres, collapse = "\n\t"))
   }
 })
-siteCovs(umfC) <- NULL
+# siteCovs(umfC) <- NULL
 # siteCovs(umfC) <- data.frame("a" = rnorm(4)) # normal error
 # siteCovs(umfC) <- list(t_obsCovsMeasures, t_obsCovsFunctions) # normal error
-siteCovs(umfC) <- t_siteCovs
+# siteCovs(umfC) <- t_siteCovs
 
 ## Coercion ----
 setAs("data.frame", "unmarkedFrameContinuous", function(from) {
@@ -849,8 +712,7 @@ setAs("unmarkedFrameContinuous", "data.frame", function(from) {
   )]
   return(umfCdf)
 })
-as(mallardUMF, "data.frame")
-as(umfC, "data.frame")
+# as(umfC, "data.frame")
 
 ## Display: plot/show/summary ----
 
@@ -926,12 +788,12 @@ setMethod(
     }
   }
 )
-plot(umfC)
-plot(umfC, col.detection = "blue", show.legend = F, ntime.ticks = 2)
+# plot(umfC)
+# plot(umfC, col.detection = "blue", show.legend = F, ntime.ticks = 2)
 
 
-show(umfC)
-print(umfC)
+# show(umfC)
+# print(umfC)
 
 
 
@@ -952,7 +814,7 @@ setMethod("summary", "unmarkedFrameContinuous", function(object, ...) {
     object@deploymentData$begintime, 2)
   detec_counts <- merge(
     object@deploymentData[, c("site", "deployment", "deployment_duration")],
-    setNames(as.data.frame(table(umfC@y$deployment)), c("deployment", "nb_obs")),
+    setNames(as.data.frame(table(object@y$deployment)), c("deployment", "nb_obs")),
     by = "deployment", all.x = TRUE
   )
   detec_counts$nb_obs[is.na(detec_counts$nb_obs)] <- 0
@@ -1002,17 +864,368 @@ setMethod("summary", "unmarkedFrameContinuous", function(object, ...) {
 
   if (!is.null(object@obsCovs)) {
     cat("\nObservation-level covariates (estimated from interpolated functions):\n")
-    t0 <- as.integer(min(umfC@deploymentData$begintime))
-    t1 <- as.integer(max(umfC@deploymentData$endtime))
-    covsForSummary <- lapply(names(umfC@obsCovs$obsCovsFunctions), function(covname) {
-      unlist(lapply(umfC@deploymentData$deployment, function(dp) {
-        covfun <- umfC@obsCovs$obsCovsFunctions[[covname]]
+    t0 <- as.integer(min(object@deploymentData$begintime))
+    t1 <- as.integer(max(object@deploymentData$endtime))
+    covsForSummary <- lapply(names(object@obsCovs$obsCovsFunctions), function(covname) {
+      unlist(lapply(object@deploymentData$deployment, function(dp) {
+        covfun <- object@obsCovs$obsCovsFunctions[[covname]]
         if (!is.function(covfun)) covfun <- covfun[[dp]]
         covfun(seq(t0, t1, length.out = 10000))
       }))
     })
-    names(covsForSummary) <- names(umfC@obsCovs$obsCovsFunctions)
+    names(covsForSummary) <- names(object@obsCovs$obsCovsFunctions)
     print(summary(as.data.frame(covsForSummary)))
   }
 })
-summary(umfC)
+# summary(umfC)
+
+# TESTS ------------------------------------------------------------------------
+library(testthat)
+
+test_that("unmarkedFrameContinuous constructor works correctly", {
+  # Minimal valid input
+  minimal_y <- data.frame(
+    deployment = c("A1", "A1"),
+    obstime = c(5, 6)
+  )
+  minimal_deploy <- data.frame(
+    site = "A",
+    deployment = c("A1", "A2"),
+    begintime = c(0, 10),
+    endtime = c(10, 20)
+  )
+  expect_no_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = NULL,
+      siteCovs = NULL
+    )
+  })
+
+  # Adding obsCovs: measures
+  obs_meas <- data.frame(
+    deployment = c("A1", "A1", "A2", "A2"),
+    covtime = c(0, 10, 10, 20),
+    temp = c(20, 30, 28, 19)
+  )
+  expect_no_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(obsCovsMeasures = obs_meas)
+    )
+  })
+
+  # Adding obsCovs: function
+  expect_no_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(obsCovsFunctions = list(temp = function(t) t * 2))
+    )
+  })
+  expect_no_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(obsCovsFunctions = list(temp = list(
+        A1 = function(t) 1 + t,
+        A2 = function(t) 1 / t^2
+      )))
+    )
+  })
+
+  # y missing deployment
+  expect_error(
+    unmarkedFrameContinuous(
+      y = data.frame(obstime = 5),
+      deploymentData = minimal_deploy
+    ),
+    "deployment"
+  )
+
+  # y missing obstime
+  expect_error(
+    unmarkedFrameContinuous(
+      y = data.frame(deployment = "A1"),
+      deploymentData = minimal_deploy
+    ),
+    "obstime"
+  )
+
+  # deploymentData missing required columns
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = data.frame(
+        site = "A",
+        deployment = "A1",
+        begintime = 0
+      )
+    ),
+    "endtime"
+  )
+
+  # begintime >= endtime
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = data.frame(
+        site = "A",
+        deployment = "A1",
+        begintime = 10,
+        endtime = 8
+      )
+    ),
+    "endtime"
+  )
+
+  # y$deployment not present in deploymentData
+  expect_error(
+    unmarkedFrameContinuous(
+      y = data.frame(
+        deployment = "BAD",
+        obstime = 5
+      ),
+      deploymentData = minimal_deploy
+    ),
+    "deployment"
+  )
+
+  # y$obstime outside interval
+  expect_error(
+    unmarkedFrameContinuous(
+      y = data.frame(
+        deployment = "A1",
+        obstime = 500
+      ),
+      deploymentData = minimal_deploy
+    ),
+    "outside"
+  )
+
+  # duplicated deployment IDs
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = data.frame(
+        site = c("A", "A"),
+        deployment = c("A1", "A1"),
+        begintime = c(0, 1),
+        endtime = c(10, 5)
+      )
+    ),
+    "duplicated deployment"
+  )
+
+  # siteCovs missing "site"
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      siteCovs = data.frame(foo = 1:2)
+    ),
+    "site"
+  )
+
+  # siteCovs has duplicated site IDs
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      siteCovs = data.frame(site = c("A", "A"), x = 1:2)
+    ),
+    "duplicated"
+  )
+
+  # forbidden name overlap between deploymentData and siteCovs
+  expect_error(
+    unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      siteCovs = data.frame(site = "A", deployment = "XX")
+    ),
+    "common column names"
+  )
+
+  # Helper: build object but break pieces manually
+  goodumf <- unmarkedFrameContinuous(minimal_y, minimal_deploy)
+
+  ## Missing y
+  expect_error(goodumf@y <- NULL)
+
+  ## Empty y
+  badumf <- goodumf
+  badumf@y <- data.frame()
+  expect_match(validunmarkedFrameContinuous(badumf), "missing")
+
+  ## Missing deploymentData
+  expect_error(goodumf@deploymentData <- NULL)
+
+  ## non-numeric begintime / endtime
+  expect_error(unmarkedFrameContinuous(minimal_y, data.frame(
+    site = "A",
+    deployment = c("A1", "A2"),
+    begintime = c("0", "10"),
+    endtime = c("10", "20")
+  )))
+
+  ## non-numeric obstime
+  expect_error(unmarkedFrameContinuous(data.frame(
+    deployment = c("A1"),
+    obstime = c("5")
+  ), minimal_deploy))
+
+  ## non-numeric covtime
+  expect_error({
+    unmarkedFrameContinuous(minimal_y, minimal_deploy,
+      obsCovs = list(data.frame(deployment = "A1", covtime = "x", x = 5))
+    )
+  })
+
+  ## obsCovs: more than one df
+  expect_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(
+        data.frame(deployment = "A1", covtime = 1, a = 1),
+        data.frame(deployment = "A1", covtime = 2, a = 2)
+      )
+    )
+  })
+
+  ## obsCovs: more than one function list
+  expect_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(
+        obsCovsFunctions = list(temp = function(t) t),
+        obsCovsFunctions2 = list(temp = function(t) t)
+      )
+    )
+  })
+
+  ## obsCovs: functions with wrong number of args
+  expect_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(list(temp = function(a, b) a + b))
+    )
+  })
+
+  ## obsCovsMeasures deployments not in deploymentData
+  expect_error({
+    m <- unmarkedFrameContinuous(
+      y = minimal_y,
+      deploymentData = minimal_deploy,
+      obsCovs = list(data.frame(deployment = "BAD", covtime = 1, x = 5))
+    )
+  })
+})
+
+
+test_that("unmarkedFrameContinuous associated methods works correctly", {
+  # Build a clean valid object for testing
+  y <- data.frame(
+    deployment = c("D1", "D1", "D2"),
+    obstime = c(5, 6, 15)
+  )
+  deploy <- data.frame(
+    site = c("S1", "S1"),
+    deployment = c("D1", "D2"),
+    begintime = c(0, 10),
+    endtime = c(10, 20)
+  )
+  sitec <- data.frame(
+    site = "S1",
+    elev = 100
+  )
+  obs_meas <- data.frame(
+    deployment = c("D1", "D1", "D2", "D2"),
+    covtime = c(0, 10, 10, 20),
+    temp = c(1, 2, 3, 4)
+  )
+  umf <- unmarkedFrameContinuous(
+    y = y,
+    deploymentData = deploy,
+    obsCovs = list(obsCovsMeasures = obs_meas),
+    siteCovs = sitec
+  )
+  expect_equal(getY(umf), y)
+  expect_equal(numSites(umf), 1)
+  expect_equal(numDeployments(umf), 2)
+  expect_equal(maxNumDeployments(umf), 2)
+  expect_equal(deploymentData(umf), deploy)
+  expect_equal(obsNum(umf), 3)
+  expect_equal(siteCovs(umf), sitec)
+  expect_true("temp" %in% names(obsCovs(umf)$obsCovsFunctions))
+  expect_true("elev" %in% stateCovsNames(umf)$siteCovs)
+  expect_true("elev" %in% stateCovsNames(umf, detailled = FALSE))
+  expect_true("temp" %in% obsCovsNames(umf)[["obsCovs$obsCovsFunctions"]])
+  expect_true("temp" %in% obsCovsNames(umf, detailled = FALSE))
+
+  # Replace deploymentData
+  new_deploy <- deploy
+  new_deploy$begintime <- c(0, 11)
+  expect_no_error({
+    umf2 <- umf
+    deploymentData(umf2) <- new_deploy
+  })
+  expect_error({
+    umf2 <- umf
+    deploymentData(umf2) <- data.frame(
+      site = "S1", deployment = "D1",
+      begintime = 10, endtime = 5 # begintime >= endtime
+    )
+  })
+
+  # Replace obsCovs
+  expect_no_error({
+    umf2 <- umf
+    obsCovs(umf2) <- NULL
+  })
+  expect_no_error({
+    umf2 <- umf
+    obsCovs(umf2) <- list(
+      obsCovsFunctions = list(temp = function(t) t * 2)
+    )
+  })
+  expect_error({
+    umf2 <- umf
+    obsCovs(umf2) <- list(
+      obsCovsFunctions = list(temp = function(a, b) a + b) # Two args
+    )
+  })
+
+  # Replace: siteCovs<-
+  expect_no_error({
+    umf2 <- umf
+    siteCovs(umf2) <- NULL
+  })
+  expect_error({
+    umf2 <- umf
+    siteCovs(umf2) <- data.frame(x = 1:2)
+  })
+
+  # Coercion: from unmarkedFrameContinuous -> data.frame
+  expect_no_error(df <- as(umf, "data.frame"))
+  expect_true("site" %in% names(df))
+  expect_true("deployment" %in% names(df))
+  expect_true("nb_obs" %in% names(df))
+  expect_true(any(grepl("temp.", names(df))))
+  expect_error(
+    # Data.frame -> unmarkedFrameContinuous: error
+    as(data.frame(a = 1:3), "unmarkedFrameContinuous")
+  )
+
+  # Plot,show,summary...
+  expect_no_error(plot(umf))
+  expect_no_error(plot(umf, col.detection = "blue", show.legend = FALSE))
+  expect_no_error(show(umf))
+  expect_no_error(print(umf))
+  expect_no_error(summary(umf))
+})

@@ -284,7 +284,7 @@ setClass("unmarkedFit",
   representation(fitType = "character",
     call = "call",
     formlist = "list",
-    data = "unmarkedFrameDiscrete",
+    data = "unmarkedFrame",
     sitesRemoved = "numeric",  # vector of indices of removed sites
     estimates = "unmarkedEstimateList",
     AIC = "numeric",
